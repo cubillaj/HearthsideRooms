@@ -5,7 +5,7 @@ import { handleControllererror } from "../utils/handleErrorController.js"
 export const REFRESH_COOKIE_OPTIONS = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'strict' as const,
     maxAge: 1 * 24 * 60 * 60 * 1000,
     path: '/api/auth',
 } 
