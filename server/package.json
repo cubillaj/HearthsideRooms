@@ -29,6 +29,7 @@
     "nodemon": "^3.1.14",
     "pg": "^8.20.0",
     "socket.io": "^4.8.3",
+    "tsx": "^4.21.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -37,7 +38,6 @@
     "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
     "drizzle-kit": "^0.31.10",
-    "tsx": "^4.21.0",
     "typescript": "^6.0.3"
   }
 }
