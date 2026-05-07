@@ -7,8 +7,10 @@ import userRouter from './src/routes/user.routes.js'
 import roomRouter from './src/routes/room.routes.js'
 import messageRouter from './src/routes/message.routes.js'
 import cookieParser from 'cookie-parser'
+import path from 'path'
 
 const app = express()
+app.use(express.static(path.join(__dirname, '../client/dist')))
 const devOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174']
 
 app.use(cors({
@@ -27,6 +29,10 @@ app.use('/api/auth', authRouter)
 app.use('/api/users', userRouter)
 app.use('/api/rooms', roomRouter)
 app.use('/api/messages', messageRouter)
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'))
+})
 
 server.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`)
