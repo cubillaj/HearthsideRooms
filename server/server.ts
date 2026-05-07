@@ -1,0 +1,33 @@
+import express from 'express'
+import http from "http"
+import { initSocket } from './src/socket/socket.js'
+import cors from 'cors'
+import authRouter from './src/routes/auth.routes.js'
+import userRouter from './src/routes/user.routes.js'
+import roomRouter from './src/routes/room.routes.js'
+import messageRouter from './src/routes/message.routes.js'
+import cookieParser from 'cookie-parser'
+
+const app = express()
+const devOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174']
+
+app.use(cors({
+    origin: process.env.NODE_ENV === 'production' ? process.env.CLIENT_URL : devOrigins,
+    credentials: true
+}))
+app.use(express.json())
+app.use(cookieParser())
+
+const server = http.createServer(app)
+const PORT = process.env.PORT || 3000
+
+initSocket(server)
+
+app.use('/api/auth', authRouter)
+app.use('/api/users', userRouter)
+app.use('/api/rooms', roomRouter)
+app.use('/api/messages', messageRouter)
+
+server.listen(PORT, () => {
+    console.log(`Server started on port ${PORT}`)
+})
