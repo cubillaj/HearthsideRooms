@@ -11,8 +11,14 @@ export const userSchema = z.object({
                 .refine(value => /[A-Z]/.test(value), {
                         message: 'Must include uppercase'
                 })  
+                .refine(value => /[a-z]/.test(value), {
+                        message: 'Must include lowercase'
+                })  
                 .refine(value => /[!@#$%^&*(),.?":{}|<>]/.test(value), {
                     message: 'Must include at least one symbol. [!@#$%^&*(),.?":{}|<>]'
+                })
+                .refine(value => /[0-9]/.test(value), {
+                    message: 'Must include at least one number.'
                 })
     })
 
@@ -42,9 +48,24 @@ export const changePasswordSchema = userSchema.pick({
     currentPassword: z.string().min(1, 'Input current password')
 })
 
+export const UpdateUserSchema = userSchema.pick({
+    username: true,
+    name: true,
+    email: true,
+    lastName: true,
+    middleName: true
+})
+.partial()
+
+export const UpdateUserPasswordSchema = userSchema.pick({
+    password: true
+})
+
 export type UserSchema = z.infer<typeof userSchema>
 export type UpdateMyProfileSchema = z.infer<typeof updateMyProfileSchema>
 export type ChangePasswordSchema = z.infer<typeof changePasswordSchema>
 export type LoginSchema = z.infer<typeof loginSchema>
 export type RegisterUserSchema = z.infer<typeof registerUserSchema>
 export type AdminCreateUserSchema = z.infer<typeof adminCreateUserSchema>
+export type UpdateSchema = z.infer<typeof UpdateUserSchema>
+export type ChangeUserPasswordSchema = z.infer<typeof UpdateUserPasswordSchema>

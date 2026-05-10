@@ -1,8 +1,8 @@
 import { users } from "../db/schema.js";
 import { db } from "../db/index.js";
-import { eq } from "drizzle-orm";
+import { eq, ne, and } from "drizzle-orm";
 import { AppError } from "../utils/appError.js";
-import {UpdateMyProfileSchema, updateMyProfileSchema, userSchema, UserSchema, changePasswordSchema, ChangePasswordSchema, adminCreateUserSchema, AdminCreateUserSchema} from '../validation/user.validation.js'
+import {UpdateMyProfileSchema, updateMyProfileSchema, changePasswordSchema, ChangePasswordSchema, adminCreateUserSchema, AdminCreateUserSchema, UpdateUserSchema} from '../validation/user.validation.js'
 import { comparePassword, hashPassword } from "./auth.services.js";
 
 export const userProfile = async (userId: number) => {
@@ -121,4 +121,106 @@ export const createAccountByAdmin = async (data: unknown) => {
     if (!parsed.success) throw new AppError('Invalid data', 400)
 
     return createUserAccount(parsed.data)
+}
+
+// for admin get all users
+export const getAllUsers = async () => {
+
+    const allUsers = await db.query.users.findMany({
+        where: ne(users.role, 'super_admin'),
+        columns: {
+            updatedAt: false,
+            password: false,
+            role: false
+        }
+    })
+
+    if (allUsers.length === 0) return []
+    
+    return allUsers
+}
+
+// get specific user
+export const getUser = async (userId: number) => {
+    const user = await db.query.users.findFirst({
+        where: and(
+            eq(users.id, userId),
+            ne(users.role, 'super_admin')
+        ),
+        columns: {
+            password: false,
+            updatedAt: false,
+            role: false
+        }
+    })
+
+    if (!user) throw new AppError('User not found', 404)
+
+    return user
+}
+
+// update specific user
+export const updateUser = async (userId: number, data: unknown) => {
+    const parsed = UpdateUserSchema.safeParse(data)
+
+    if (!parsed.success) {
+        const errors = parsed.error.flatten().fieldErrors
+        const msgVal: any = Object.values(errors).flat()[0] || 'Invalid Data'
+
+        throw new AppError(msgVal, 400)
+    }
+
+    const updateData = Object.fromEntries(
+        Object.entries(parsed.data).filter(([_, value]) => value !== undefined)
+    )
+
+    if (Object.keys(updateData).length === 0) {
+        throw new AppError('No fields to update', 400)
+    }
+
+    const existing = await db.query.users.findFirst({
+        where: and(
+            eq(users.id, userId),
+            ne(users.role, 'super_admin')
+        )
+    })
+
+    if (!existing) throw new AppError('User not found', 404)
+
+    if (updateData.email) {
+        const emailOwner = await db.query.users.findFirst({
+            where: and(
+                eq(users.email, updateData.email as string),
+                ne(users.id, userId)
+            )
+        })
+
+        if (emailOwner) throw new AppError('Email is already exists', 409)
+    }
+
+    const [updatedUser] = await db.update(users).set(updateData)
+    .where(eq(users.id, existing.id))
+    .returning({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        name: users.name,
+        middleName: users.middleName,
+        lastName: users.lastName
+    })
+
+    if (!updatedUser) throw new AppError('Failed to update user', 400)
+
+    return updatedUser
+}
+
+export const deleteUser = async (userId: number) => {
+    const [deletedUser] = await db.delete(users).where(and(
+                                                eq(users.id, userId), 
+                                                ne(users.role, 'super_admin')
+                                            )).returning()
+
+    if (!deletedUser) throw new AppError('User not found', 404)
+
+    return deletedUser
 }

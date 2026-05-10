@@ -8,6 +8,7 @@ import * as userValidation from '../validation/user.validation.js'
 import * as UserService from '../services/users.services.js'
 import { randomBytes } from "node:crypto";
 import { AppError } from "../utils/appError.js";
+import { validationMessage } from "../utils/zodValidationError.js";
 
 const JWT_SECRET: any = process.env.JWT_SECRET 
 const JWT_EXPIRES_IN: any = process.env.EXPIRES_IN || '15m'
@@ -99,7 +100,9 @@ export const rotateRefreshToken = async (oldToken: string) => {
 export const register = async (data: unknown) => {
    const parsed = userValidation.registerUserSchema.safeParse(data)
 
-   if (!parsed.success) throw new AppError('Invalid data', 400)
+   if (!parsed.success) {
+     throw new AppError(validationMessage(parsed.error), 400)
+   }
 
    return UserService.createUserAccount(parsed.data)
 }

@@ -7,6 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon --watch server.ts --watch src --ext ts --exec tsx server.ts",
     "start": "tsx server.ts",
+    "create:super-admin": "tsx scripts/create-super-admin.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"

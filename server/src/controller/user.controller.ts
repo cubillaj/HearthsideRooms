@@ -74,3 +74,67 @@ export const createAccountByAdminController = async (req: Request, res: Response
         return handleControllererror(res, error)
     }
 }
+
+export const getAllUserController = async (req: Request, res: Response) => {
+    try {
+        const users = await UserService.getAllUsers()
+
+        return res.status(200).json({
+            users
+        })
+    } catch (error) {
+        return handleControllererror(res, error)
+    }
+}
+
+export const getUserController = async (req: Request, res: Response) => {
+    try {
+    const userId = Number(req.params.id)
+
+    if (!Number.isInteger(userId) || userId <= 0) return res.status(400).json({
+        message: 'Id is required'
+    })
+
+    const user = await UserService.getUser(userId)
+
+    return res.status(200).json({
+        user
+    })
+   } catch (error) {
+    return handleControllererror(res, error)
+   }
+}
+
+export const updateUserController = async (req: Request, res: Response) => {
+    try {
+    const userId = Number(req.params.id)
+
+    if (!Number.isInteger(userId) || userId <= 0) return res.status(400).json({ message: 'Id is required'})
+
+    const user = await UserService.updateUser(userId, req.body)
+
+    return res.status(200).json({
+        user
+    })
+    } catch (error) {
+        return handleControllererror(res, error)
+    }
+}
+
+export const deleteUserController = async (req: Request, res: Response) => {
+    try {
+        const userId = Number(req.params.id)
+
+        if (!Number.isInteger(userId) || userId <= 0) return res.status(400).json({
+            message: 'User id is required'
+        })
+
+        await UserService.deleteUser(userId)
+
+        return res.status(200).json({
+            message: 'Successfully deleted user!'
+        })
+    } catch(error) {
+        return handleControllererror(res, error)
+    }
+}
