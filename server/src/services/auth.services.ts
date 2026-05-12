@@ -101,7 +101,10 @@ export const register = async (data: unknown) => {
    const parsed = userValidation.registerUserSchema.safeParse(data)
 
    if (!parsed.success) {
-     throw new AppError(validationMessage(parsed.error), 400)
+     const errors = parsed.error.flatten().fieldErrors
+     const msgVal = Object.values(errors).flat()[0] || 'Invalid data'
+
+     throw new AppError(msgVal, 400)
    }
 
    return UserService.createUserAccount(parsed.data)
