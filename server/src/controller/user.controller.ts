@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { handleControllererror } from "../utils/handleErrorController.js";
 import * as UserService from '../services/users.services.js'
+
 export const userProfileController = async (req: Request, res: Response) => {
     try {
         const userId = req.user?.id
@@ -77,7 +78,7 @@ export const createAccountByAdminController = async (req: Request, res: Response
 
 export const getAllUserController = async (req: Request, res: Response) => {
     try {
-        const users = await UserService.getAllUsers()
+        const users = await UserService.getAllUsers(req.query)
 
         return res.status(200).json({
             users

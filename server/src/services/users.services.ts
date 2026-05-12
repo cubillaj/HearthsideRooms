@@ -1,8 +1,19 @@
 import { users } from "../db/schema.js";
 import { db } from "../db/index.js";
-import { eq, ne, and } from "drizzle-orm";
+import {
+    and,
+    asc,
+    desc,
+    eq,
+    ilike,
+    ne,
+    or,
+    gte,
+    lte
+} from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 import { AppError } from "../utils/appError.js";
-import {UpdateMyProfileSchema, updateMyProfileSchema, changePasswordSchema, ChangePasswordSchema, adminCreateUserSchema, AdminCreateUserSchema, UpdateUserSchema} from '../validation/user.validation.js'
+import {UpdateMyProfileSchema, updateMyProfileSchema, changePasswordSchema, ChangePasswordSchema, adminCreateUserSchema, AdminCreateUserSchema, UpdateUserSchema, GetUsersQuerySchema} from '../validation/user.validation.js'
 import { comparePassword, hashPassword } from "./auth.services.js";
 
 export const userProfile = async (userId: number) => {
@@ -124,10 +135,66 @@ export const createAccountByAdmin = async (data: unknown) => {
 }
 
 // for admin get all users
-export const getAllUsers = async () => {
+export const getAllUsers = async (query: unknown) => {
+    const parsed = GetUsersQuerySchema.safeParse(query)
+
+    if (!parsed.success) {
+        const errors = parsed.error.flatten().fieldErrors
+        const msgVal = Object.values(errors).flat()[0] || 'Invalid data'
+
+        throw new AppError(msgVal, 400)
+    }
+
+    const {search, status, createdTo, createdFrom, page, limit, sortBy, sortOrder} = parsed.data
+
+    const filters: SQL[] = [
+        ne(users.role, 'super_admin')
+    ]
+
+    if (search) {
+        const searchFilter = or(
+            ilike(users.name, `%${search}%`),
+            ilike(users.email, `%${search}%`),
+            ilike(users.username, `%${search}%`)
+        )
+
+        if (searchFilter) {
+            filters.push(searchFilter)
+        }
+    }
+
+    if (status) {
+        filters.push(eq(users.status, status))
+    }
+
+    if (createdFrom) {
+        filters.push(gte(users.createdAt, createdFrom))
+    }
+
+    if (createdTo) {
+        filters.push(lte(users.createdAt, createdTo))
+    }
+
+    const sortColumn = {
+        name: users.name,
+        email: users.email,
+        username: users.username,
+        createdAt: users.createdAt
+    }[sortBy]
+
+    const orderBy =
+        sortOrder === 'asc'
+            ? asc(sortColumn)
+            : desc(sortColumn)
+
+    const offset = (page - 1) * limit
+
 
     const allUsers = await db.query.users.findMany({
-        where: ne(users.role, 'super_admin'),
+        where: and(...filters),
+        orderBy,
+        limit,
+        offset,
         columns: {
             updatedAt: false,
             password: false,
@@ -206,7 +273,8 @@ export const updateUser = async (userId: number, data: unknown) => {
         email: users.email,
         name: users.name,
         middleName: users.middleName,
-        lastName: users.lastName
+        lastName: users.lastName,
+        status: users.status
     })
 
     if (!updatedUser) throw new AppError('Failed to update user', 400)

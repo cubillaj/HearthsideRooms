@@ -80,3 +80,47 @@ export const getAllRoomsController = async (req: Request, res: Response) => {
         return handleControllererror(res, error)
     }
 }
+
+export const getAllRoomsForAdminController = async (req: Request, res: Response) => {
+    try {
+        const rooms = await RoomServices.getAllRoomsForAdmin(req.query)
+
+        return res.status(200).json({
+            rooms
+        })
+    } catch (error) {
+        return handleControllererror(res, error)
+    }
+}
+
+export const getSingleRoomController = async (req: Request, res: Response) => {
+    try {
+        const roomId = Number(req.params.id)
+
+        if (!roomId) return res.status(400).json({ message: 'Room id is required'})
+
+        const room = await RoomServices.getSingleRoom({ roomId })
+
+        return res.status(200).json({
+            room
+        })
+    } catch (error) {
+        return handleControllererror(res, error)
+    }
+}
+
+export const deleteRoomAdminController = async (req: Request, res: Response) => {
+    try {
+        const roomId = Number(req.params.id)
+
+         if (!roomId) return res.status(400).json({ message: 'Room id is required'})
+        
+        await RoomServices.deleteRoomFromAdmin({ roomId })
+
+        return res.status(200).json({
+            message: 'Successfully deleted a room.'
+        })
+    } catch (error) {
+        return handleControllererror(res, error)
+    }
+}

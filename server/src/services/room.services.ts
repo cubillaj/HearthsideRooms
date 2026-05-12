@@ -1,8 +1,9 @@
 import { roomMembers, rooms, users } from "../db/schema.js";
 import { db } from "../db/index.js";
-import { RoomPasswordSchema, roomPasswordSchema, RoomSchema, roomSchema } from "../validation/room.validation.js";
+import { DeleteRoomSchema, GetQueryRoomSchema, GetRoomSchema, RoomPasswordSchema, roomPasswordSchema, RoomSchema, roomSchema } from "../validation/room.validation.js";
 import { AppError } from "../utils/appError.js";
-import { and, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, lte } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { comparePassword, hashPassword } from "./auth.services.js";
 
 export const createRoom = async (userId: number, data: RoomSchema) => {
@@ -168,4 +169,152 @@ export const typeIndicator = async (userId: number, roomId: number) => {
     if (!member) throw new AppError('You are not member of this room', 403)
 
     return member
+}
+
+export const getAllRoomsForAdmin = async (query: unknown) => {
+    const parsed = GetQueryRoomSchema.safeParse(query)
+
+    if (!parsed.success) {
+        const errors = parsed.error.flatten().fieldErrors
+        const msgVal = Object.values(errors).flat()[0] || 'Invalid Data'
+
+        throw new AppError(msgVal, 400)
+    }
+
+    const {search, sortBy, sortOrder, createdFrom, page, limit, createdTo} = parsed.data
+
+    const filters: SQL[] = []
+
+    if(search) {
+        const searchFilters = 
+            ilike(rooms.roomName, `%${search}%`)
+
+        if(searchFilters) {
+            filters.push(searchFilters)
+        }
+    }
+
+    if (createdFrom) {
+        filters.push(gte(rooms.createdAt, createdFrom))
+    }
+
+    if (createdTo) {
+        filters.push(lte(rooms.createdAt, createdTo))
+    }
+
+    const sortColumn = {
+        createdAt: rooms.createdAt
+    }[sortBy]
+
+    const orderBy = 
+            sortOrder === 'asc'
+                ? asc(sortColumn)
+                : desc(sortColumn)
+
+    const offSet = (page - 1) * limit 
+
+    const allRooms = await db.query.rooms.findMany({
+        where: and(...filters),
+        orderBy,
+        limit,
+        offset: offSet,
+        columns: {
+            id: true,
+            roomName: true,
+            createdAt: true
+        },
+        with: {
+            creator: {
+                columns: {
+                    id: true,
+                    username: true
+                }
+            },
+            roomMembers: {
+                columns: {
+                    joinedAt: true
+                },
+                with: {
+                    user: {
+                        columns: {
+                            id: true,
+                            name: true,
+                            username: true,
+                            email: true
+                        }
+                    }
+                }
+            }
+        }
+    })
+
+    if (allRooms.length === 0) return []
+
+    return allRooms
+}
+
+export const getSingleRoom = async (data: unknown) => {
+    const parsed = GetRoomSchema.safeParse(data)
+
+    if (!parsed.success) {
+        const errors = parsed.error.flatten().fieldErrors
+        const msgVal = Object.values(errors).flat()[0] || 'Invalid data'
+
+        throw new AppError(msgVal, 400)
+    }
+
+    const { roomId} = parsed.data
+
+    const room = await db.query.rooms.findFirst({
+        where: eq(rooms.id, roomId),
+        columns: {
+            id: true,
+            roomName: true,
+            createdAt: true
+        },
+        with: {
+            roomMembers: {
+                columns: {
+                    joinedAt: true
+                },
+                with: {
+                    user: {
+                        columns: {
+                            username: true,
+                            id: true,
+                            email: true,
+                            name: true
+                        }
+                    }
+                }
+            }
+        }
+    })
+
+    if (!room) throw new AppError('Room is not found', 404)
+
+    return room
+}
+
+
+export const deleteRoomFromAdmin = async (data: unknown) => {
+    const parsed = DeleteRoomSchema.safeParse(data)
+
+    if (!parsed.success) {
+        const errors = parsed.error.flatten().fieldErrors
+        const msgVal = Object.values(errors).flat()[0] || 'Invalid data'
+
+        throw new AppError(msgVal, 400)
+    }
+
+    const [deletedRoom] = await db.delete(rooms).where(eq(rooms.id, parsed.data.roomId)).returning({
+        id: rooms.id,
+        roomName: rooms.roomName,
+        createdBy: rooms.createdBy,
+        createdAt: rooms.createdAt
+    })
+
+    if (!deletedRoom) throw new AppError('Room is not found', 400)
+
+    return deletedRoom
 }

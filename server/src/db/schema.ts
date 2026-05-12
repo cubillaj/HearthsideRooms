@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { integer, serial, varchar, pgTable, timestamp, text, primaryKey, pgEnum } from "drizzle-orm/pg-core";
+import { integer, serial, varchar, pgTable, timestamp, text, primaryKey, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 const timeStamps = {
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -20,8 +20,16 @@ export const users = pgTable('users', {
     email: varchar('email', { length: 100}).unique().notNull(),
     password: varchar('password', { length: 150}).notNull(),
     role: roleEnum('role').default('user').notNull(),
+    status: varchar('status', { length: 20}).default('active').notNull(),
     ...timeStamps
-})
+}, (table) => ({
+    usernameIdx: index('users_username_idx')
+        .on(table.username),
+    statusIdx: index('users_status_idx')
+        .on(table.status),
+    createdAt: index('users_created_at_idx')
+        .on(table.createdAt),
+}))
 
 export const refreshTokens = pgTable('refresh_token', {
     id: serial('id').primaryKey(),
@@ -41,7 +49,7 @@ export const rooms = pgTable('rooms', {
 
 export const roomMembers = pgTable('room_member', {
     userId: integer('user_id').references(() => users.id ).notNull(),
-    roomId: integer('room_id').references(() => rooms.id).notNull(),
+    roomId: integer('room_id').references(() => rooms.id, {onDelete: 'cascade'}).notNull(),
     joinedAt: timestamp('joined_at').defaultNow().notNull(),
 },
  (table) => ({
@@ -53,7 +61,7 @@ export const roomMembers = pgTable('room_member', {
 
 export const messages = pgTable('messages', {
     id: serial('id').primaryKey().notNull(),
-    roomId: integer('room_id').references(() => rooms.id).notNull(),
+    roomId: integer('room_id').references(() => rooms.id, {onDelete: 'cascade'}).notNull(),
     message: text('message').notNull(),
     userId: integer('user_id').references(() => users.id).notNull(),
     ...timeStamps
@@ -61,7 +69,7 @@ export const messages = pgTable('messages', {
 
 export const messageReads = pgTable('messageReads', {
     userId: integer('user_id').references(() => users.id).notNull(),
-    messageId: integer('message_id').references(() => messages.id).notNull(),
+    messageId: integer('message_id').references(() => messages.id, {onDelete: 'cascade'}).notNull(),
     readAt: timestamp('read_at').defaultNow().notNull()
 },
     (table) => ({
