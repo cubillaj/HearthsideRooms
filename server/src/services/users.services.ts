@@ -129,7 +129,12 @@ export const createUserAccount = async (data: AdminCreateUserSchema) => {
 export const createAccountByAdmin = async (data: unknown) => {
     const parsed = adminCreateUserSchema.safeParse(data)
 
-    if (!parsed.success) throw new AppError('Invalid data', 400)
+    if (!parsed.success) {
+        const errors = parsed.error.flatten().fieldErrors
+        const msgVal = Object.values(errors).flat()[0] || 'Invalid data'
+
+        throw new AppError(msgVal, 400)
+    }
 
     return createUserAccount(parsed.data)
 }

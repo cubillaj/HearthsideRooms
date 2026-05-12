@@ -2,11 +2,11 @@ import { z} from "zod"
 
 export const userSchema = z.object({
     username: z.string().min(1).optional(),
-    name: z.string().min(1, 'Name is required'),
+    name: z.string({ error: 'Name is required' }).min(1, 'Name is required'),
     middleName: z.string().min(1).optional(),
-    lastName: z.string().min(1, 'Last name is required'),
-    email: z.string().trim().min(1, 'Email is required').email('Invalid email format').transform(value => value.toLowerCase()),
-    password: z.string()
+    lastName: z.string({ error: 'Last name is required' }).min(1, 'Last name is required'),
+    email: z.string({ error: 'Email is required' }).trim().min(1, 'Email is required').email('Invalid email format').transform(value => value.toLowerCase()),
+    password: z.string({ error: 'Password is required' })
                 .min(8, 'Password length must be at least 8 letters')
                 .refine(value => /[A-Z]/.test(value), {
                         message: 'Must include uppercase'
@@ -30,8 +30,8 @@ export const adminCreateUserSchema = userSchema.extend({
 })
 
 export const loginSchema = z.object({
-    email: z.string().trim().min(1, 'Email is required').email('Invalid email format').transform(value => value.toLowerCase()),
-    password: z.string().min(1, 'Password is required')
+    email: z.string({ error: 'Email is required' }).trim().min(1, 'Email is required').email('Invalid email format').transform(value => value.toLowerCase()),
+    password: z.string({ error: 'Password is required' }).min(1, 'Password is required')
 })
 
 export const updateMyProfileSchema = userSchema.pick({
@@ -47,7 +47,7 @@ export const changePasswordSchema = userSchema.pick({
     password: true
 })
 .extend({
-    currentPassword: z.string().min(1, 'Input current password')
+    currentPassword: z.string({ error: 'Input current password' }).min(1, 'Input current password')
 })
 
 export const UpdateUserSchema = userSchema.pick({

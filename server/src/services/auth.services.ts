@@ -104,6 +104,7 @@ export const register = async (data: unknown) => {
      const errors = parsed.error.flatten().fieldErrors
      const msgVal = Object.values(errors).flat()[0] || 'Invalid data'
 
+     console.log(msgVal)
      throw new AppError(msgVal, 400)
    }
 
