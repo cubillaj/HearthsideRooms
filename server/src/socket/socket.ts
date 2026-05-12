@@ -7,6 +7,7 @@ import { verifyToken } from '../services/auth.services.js'
 import { db } from '../db/index.js'
 import { roomMembers} from '../db/schema.js'
 import { eq, and } from 'drizzle-orm'
+import { roomSchema } from '../validation/room.validation.js'
 let io: SocketIOServer | undefined
 const onlineUsers = new Map<number, number>()
 
@@ -73,6 +74,27 @@ export const initSocket = (server: HttpServer): SocketIOServer => {
             } catch (error) {
                 socket.emit('join_room_error', {
                     message: 'Failed to join room'
+                })
+            }
+        })
+
+        socket.on('new_room', async (data: unknown) => {
+            try {
+                const parsed = roomSchema.safeParse(data)
+
+                if (!parsed.success) {
+                    socket.emit('room_error', {
+                        message: 'Invalid room data'
+                    })
+                    return
+                }
+
+                const newRoom = await RoomService.createRoom(userId, parsed.data)
+
+                io?.emit('room_created', newRoom)
+            } catch(error) {
+                socket.emit('room_error', {
+                    message: 'Failed to create room'
                 })
             }
         })
@@ -171,4 +193,8 @@ export const getIo = (): SocketIOServer => {
     if (!io) throw new Error('Socket.io is not initialized')
     
     return io
+}
+
+export const emitRoomCreated = (room: unknown) => {
+    getIo().emit('room_created', room)
 }

@@ -30,7 +30,15 @@ export const signToken = (userId: number) => {
 
 // verify the token if it is valid
 export const verifyToken = (token: string) => {
-    return jwt.verify(token, JWT_SECRET) as any
+    try {
+        return jwt.verify(token, JWT_SECRET) as any
+    } catch (error) {
+        if (error instanceof Error && ['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError'].includes(error.name)) {
+            throw new AppError('Unauthorized', 401)
+        }
+
+        throw error
+    }
 }
 
 export const getUserById = async (userId: number) => {

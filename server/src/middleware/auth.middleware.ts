@@ -1,14 +1,15 @@
 import { Request, Response, NextFunction } from "express"
 import * as AuthService from '../services/auth.services.js'
 import { handleControllererror } from "../utils/handleErrorController.js"
+import { AppError } from "../utils/appError.js"
 
 export const authorize = async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
     try {
         const authHeader = req.headers.authorization
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(400).json({
-                message: 'No token provided'
+            return res.status(401).json({
+                message: 'Unauthorized'
             })
         }
 
@@ -17,16 +18,22 @@ export const authorize = async (req: Request & { user?: any }, res: Response, ne
 
         const user = await AuthService.getUserById(decoded.userId)
 
-        if (!user) {
-            return res.status(404).json({
-                message: 'User not found'
-            })
-        }
-
         req.user = user
      
         next()
     } catch (error) {
+        if (error instanceof Error && ['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError'].includes(error.name)) {
+            return res.status(401).json({
+                message: 'Unauthorized'
+            })
+        }
+
+        if (error instanceof AppError && error.message === 'User not found') {
+            return res.status(401).json({
+                message: 'Unauthorized'
+            })
+        }
+
         return handleControllererror(res, error)
     }
 }   

@@ -23,7 +23,12 @@ export const createRoom = async (userId: number, data: RoomSchema) => {
 
     const hasedRoomPassword = roomPassword ? await hashPassword(roomPassword) : null
 
-    const [newRoom] = await db.insert(rooms).values({ roomName, roomPassword: hasedRoomPassword, createdBy: user.id }).returning({id: rooms.id, room: rooms.roomName})
+    const [newRoom] = await db.insert(rooms).values({ roomName, roomPassword: hasedRoomPassword, createdBy: user.id }).returning({
+        id: rooms.id,
+        roomName: rooms.roomName,
+        createdBy: rooms.createdBy,
+        createdAt: rooms.createdAt
+    })
 
     if (!newRoom) throw new AppError('Failed to create new room', 400)
     
@@ -32,7 +37,10 @@ export const createRoom = async (userId: number, data: RoomSchema) => {
         roomId: newRoom.id
     })
 
-    return newRoom
+    return {
+        ...newRoom,
+        hasPassword: Boolean(roomPassword)
+    }
 }
 
 export const joinRoom = async (userId: number, roomId: number, roomPassword: RoomPasswordSchema ) => {

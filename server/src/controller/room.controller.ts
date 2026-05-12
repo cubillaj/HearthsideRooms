@@ -1,6 +1,7 @@
 import * as RoomServices from '../services/room.services.js'
 import { Request, Response } from 'express'
 import { handleControllererror } from '../utils/handleErrorController.js'
+import { emitRoomCreated } from '../socket/socket.js'
 
 export const createRoomController = async (req: Request, res: Response) => {
     try {
@@ -14,6 +15,8 @@ export const createRoomController = async (req: Request, res: Response) => {
             roomName,
             roomPassword
         })
+
+        emitRoomCreated(room)
 
         return res.status(201).json({
             message: 'Successfully created a room!',

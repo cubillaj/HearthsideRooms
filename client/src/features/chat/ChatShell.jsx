@@ -50,6 +50,15 @@ export const ChatShell = ({ token, user }) => {
     socket.on('online_users', (userIds) => {
       setOnlineUserIds((Array.isArray(userIds) ? userIds : []).map(Number).filter(Number.isFinite))
     })
+    socket.on('room_created', (room) => {
+      if (!room?.id) return
+
+      setRooms((current) => {
+        if (current.some((item) => item.id === room.id)) return current
+
+        return [room, ...current]
+      })
+    })
     socket.on('user_typing', (data) => {
       if (data.roomId !== activeRoomRef.current || Number(data.userId) === Number(user?.id)) return
 
@@ -83,6 +92,7 @@ export const ChatShell = ({ token, user }) => {
       socket.off('join_room_error'); socket.off('message_error')
       socket.off('typing_error'); socket.off('message_read_receipt')
       socket.off('online_users')
+      socket.off('room_created')
       socket.off('user_typing'); socket.off('user_stopped_typing')
       socket.off('receive_message')
       clearTimeout(typingTimeoutRef.current)
