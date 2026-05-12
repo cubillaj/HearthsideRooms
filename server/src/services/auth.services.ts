@@ -114,7 +114,12 @@ export const register = async (data: unknown) => {
 export const login = async (data: unknown) => {
     const parsed = userValidation.loginSchema.safeParse(data)
 
-    if (!parsed.success) throw new AppError('Invalid data', 400)
+    if (!parsed.success) {
+        const errors = parsed.error.flatten().fieldErrors
+        const msgVal = Object.values(errors).flat()[0] || 'Invalid data'
+
+        throw new AppError(msgVal, 400)
+    }
 
     const { email, password } = parsed.data as any
 
