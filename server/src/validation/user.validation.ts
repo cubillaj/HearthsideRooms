@@ -55,7 +55,8 @@ export const UpdateUserSchema = userSchema.pick({
     name: true,
     email: true,
     lastName: true,
-    middleName: true
+    middleName: true,
+    status: true
 })
 .partial()
 

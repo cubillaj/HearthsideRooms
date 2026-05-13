@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AdminPage } from './features/admin/AdminPage'
 import { AuthPanel } from './features/auth/AuthPanel'
 import { ChatShell } from './features/chat/ChatShell'
 import { ProfilePage } from './features/profile/ProfilePage'
@@ -70,6 +71,15 @@ const App = () => {
             <span className="session-badge-name">
               {token ? user?.username || user?.email || 'Signed in' : 'Guest session'}
             </span>
+            {token && user?.role === 'super_admin' && view !== 'admin' && (
+              <button
+                className="btn-admin"
+                onClick={() => setView('admin')}
+                type="button"
+              >
+                Admin
+              </button>
+            )}
             {token && (
               <button
                 className="btn-logout"
@@ -91,7 +101,9 @@ const App = () => {
             </div>
           </section>
         ) : token ? (
-          view === 'profile' ? (
+          view === 'admin' && user?.role === 'super_admin' ? (
+            <AdminPage onBack={() => setView('chat')} />
+          ) : view === 'profile' ? (
             <ProfilePage
               onBack={() => setView('chat')}
               onUserUpdate={(nextUser) => {

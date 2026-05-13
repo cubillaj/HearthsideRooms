@@ -115,6 +115,25 @@
             box-shadow: 0 4px 14px rgba(232, 140, 140, 0.45);
           }
 
+          .btn-admin {
+            background: linear-gradient(135deg, var(--sage) 0%, #5d9a70 100%);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-pill);
+            padding: 0.3rem 0.9rem;
+            font-family: 'Fredoka One', cursive;
+            font-size: 0.85rem;
+            cursor: pointer;
+            letter-spacing: 0.04em;
+            transition: transform 0.15s, box-shadow 0.15s;
+            box-shadow: 0 2px 8px rgba(125,170,140,0.35);
+          }
+
+          .btn-admin:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(125,170,140,0.45);
+          }
+
           .checking-session {
             flex: 1;
             display: grid;
@@ -539,6 +558,273 @@
           .profile-actions { align-items: stretch; flex-direction: column-reverse; }
           .profile-save-btn,
           .profile-edit-btn { max-width: none; width: 100%; }
+        }
+
+        .admin-page {
+          background: var(--warm-white);
+          border: 2px solid var(--border);
+          border-radius: var(--radius-card);
+          box-shadow: var(--shadow-warm);
+          display: flex;
+          flex: 1;
+          flex-direction: column;
+          gap: 1.25rem;
+          min-height: 560px;
+          padding: 1.25rem;
+        }
+
+        .admin-topbar {
+          align-items: center;
+          border-bottom: 2px dashed var(--border);
+          display: flex;
+          justify-content: space-between;
+          gap: 1rem;
+          padding-bottom: 1rem;
+        }
+
+        .admin-kicker {
+          color: var(--sage);
+          font-size: 0.72rem;
+          font-weight: 900;
+          letter-spacing: 0.16em;
+          margin: 0 0 0.25rem;
+          text-transform: uppercase;
+        }
+
+        .admin-topbar h2,
+        .admin-edit-header h3 {
+          color: var(--brown);
+          font-family: 'Fredoka One', cursive;
+          letter-spacing: 0.02em;
+          margin: 0;
+        }
+
+        .admin-topbar h2 { font-size: clamp(1.5rem, 4vw, 2rem); }
+        .admin-edit-header h3 { font-size: 1.25rem; overflow-wrap: anywhere; }
+
+        .admin-layout {
+          display: grid;
+          gap: 1.25rem;
+          grid-template-columns: 320px minmax(0, 1fr);
+        }
+
+        .admin-tabs {
+          background: var(--peach-light);
+          border: 2px solid var(--border);
+          border-radius: 14px;
+          display: grid;
+          gap: 0.25rem;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          max-width: 320px;
+          padding: 0.25rem;
+        }
+
+        .admin-tabs button {
+          background: transparent;
+          border: none;
+          border-radius: 10px;
+          color: var(--text-soft);
+          cursor: pointer;
+          font-family: 'Fredoka One', cursive;
+          font-size: 0.95rem;
+          padding: 0.55rem 0.75rem;
+        }
+
+        .admin-tabs button.active {
+          background: linear-gradient(135deg, var(--peach-deep) 0%, var(--rose) 100%);
+          box-shadow: 0 3px 10px rgba(232,150,90,0.35);
+          color: #fff;
+        }
+
+        .admin-create-panel,
+        .admin-users-panel {
+          border: 2px solid var(--border);
+          border-radius: 16px;
+          padding: 1rem;
+        }
+
+        .admin-create-panel {
+          align-self: start;
+          background: var(--cream);
+        }
+
+        .admin-form {
+          display: grid;
+          gap: 0;
+          margin-top: 0.75rem;
+        }
+
+        .admin-filters {
+          display: grid;
+          gap: 0.75rem;
+          grid-template-columns: minmax(220px, 1fr) 140px 140px 120px;
+        }
+
+        .admin-room-filters {
+          grid-template-columns: minmax(220px, 1fr) 160px;
+        }
+
+        .admin-table {
+          border: 2px solid var(--border);
+          border-radius: 14px;
+          margin-top: 1rem;
+          overflow: hidden;
+        }
+
+        .admin-table-head,
+        .admin-row {
+          display: grid;
+          gap: 0.75rem;
+          grid-template-columns: minmax(180px, 1.1fr) minmax(180px, 1fr) 100px 150px;
+          padding: 0.75rem 0.9rem;
+        }
+
+        .admin-room-head,
+        .admin-room-row {
+          grid-template-columns: minmax(180px, 1.1fr) minmax(150px, 0.8fr) minmax(150px, 1fr) 110px 90px;
+        }
+
+        .admin-table-head {
+          background: var(--peach-light);
+          color: var(--text-mid);
+          font-size: 0.75rem;
+          font-weight: 900;
+          text-transform: uppercase;
+        }
+
+        .admin-row {
+          align-items: center;
+          background: var(--warm-white);
+          border-top: 1px solid var(--border);
+          color: var(--text-dark);
+          font-size: 0.88rem;
+        }
+
+        .admin-row strong,
+        .admin-row span {
+          display: block;
+          overflow-wrap: anywhere;
+        }
+
+        .admin-row span {
+          color: var(--text-soft);
+          font-size: 0.75rem;
+          font-weight: 700;
+          margin-top: 0.15rem;
+        }
+
+        .admin-status {
+          border-radius: var(--radius-pill);
+          display: inline-flex;
+          font-size: 0.7rem;
+          font-weight: 900;
+          padding: 0.2rem 0.65rem;
+          text-transform: uppercase;
+        }
+
+        .admin-status.active {
+          background: var(--sage-light);
+          color: var(--sage);
+        }
+
+        .admin-status.inactive {
+          background: var(--rose-light);
+          color: #c0494f;
+        }
+
+        .admin-row-actions {
+          display: flex;
+          gap: 0.45rem;
+        }
+
+        .admin-delete-btn {
+          background: var(--rose-light);
+          border: none;
+          border-radius: 8px;
+          color: #c0494f;
+          cursor: pointer;
+          font-size: 0.8rem;
+          font-weight: 900;
+          padding: 0.35rem 0.6rem;
+        }
+
+        .admin-delete-btn:disabled,
+        .admin-pagination button:disabled {
+          cursor: not-allowed;
+          opacity: 0.5;
+        }
+
+        .admin-empty {
+          color: var(--text-soft);
+          font-weight: 800;
+          padding: 1rem;
+          text-align: center;
+        }
+
+        .admin-pagination {
+          align-items: center;
+          display: flex;
+          gap: 0.75rem;
+          justify-content: flex-end;
+          margin-top: 1rem;
+        }
+
+        .admin-pagination span {
+          color: var(--text-mid);
+          font-size: 0.85rem;
+          font-weight: 900;
+        }
+
+        .admin-edit-overlay {
+          align-items: center;
+          background: rgba(61, 43, 26, 0.34);
+          backdrop-filter: blur(3px);
+          display: flex;
+          inset: 0;
+          justify-content: center;
+          padding: 1rem;
+          position: fixed;
+          z-index: 80;
+        }
+
+        .admin-edit-panel {
+          background: var(--warm-white);
+          border: 2px solid var(--border);
+          border-radius: var(--radius-card);
+          box-shadow: var(--shadow-warm);
+          display: grid;
+          gap: 1rem;
+          max-width: 720px;
+          padding: 1.25rem;
+          width: min(100%, 720px);
+        }
+
+        .admin-edit-header {
+          align-items: center;
+          border-bottom: 2px dashed var(--border);
+          display: flex;
+          justify-content: space-between;
+          padding-bottom: 1rem;
+        }
+
+        @media (max-width: 980px) {
+          .admin-layout { grid-template-columns: 1fr; }
+          .admin-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .admin-table { border: none; border-radius: 0; }
+          .admin-table-head { display: none; }
+          .admin-row {
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            grid-template-columns: 1fr;
+            margin-bottom: 0.75rem;
+          }
+          .admin-row-actions { justify-content: flex-start; }
+        }
+
+        @media (max-width: 640px) {
+          .admin-topbar { align-items: stretch; flex-direction: column; }
+          .admin-filters { grid-template-columns: 1fr; }
+          .admin-pagination { justify-content: space-between; }
         }
 
         /* ── Divider ── */
