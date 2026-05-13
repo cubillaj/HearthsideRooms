@@ -78,6 +78,11 @@ export const GetUsersQuerySchema = z.object({
     createdTo: z.coerce.date().optional()
 })
 
+export const UpdateProfileSchema = z.object({
+    profileUrl: z.string().url('Profile image must be a valid URL').optional(),
+    bio: z.string().max(150, 'Bio must be 150 characters or less').optional()
+})
+
 export type UserSchema = z.infer<typeof userSchema>
 export type UpdateMyProfileSchema = z.infer<typeof updateMyProfileSchema>
 export type ChangePasswordSchema = z.infer<typeof changePasswordSchema>
@@ -87,3 +92,4 @@ export type AdminCreateUserSchema = z.infer<typeof adminCreateUserSchema>
 export type UpdateSchema = z.infer<typeof UpdateUserSchema>
 export type ChangeUserPasswordSchema = z.infer<typeof UpdateUserPasswordSchema>
 export type UsersQuerySchema = z.infer<typeof GetUsersQuerySchema>
+export type ProfileSchema = z.infer<typeof UpdateProfileSchema>

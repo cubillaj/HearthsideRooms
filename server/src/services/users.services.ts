@@ -1,4 +1,4 @@
-import { users } from "../db/schema.js";
+import { users, profile } from "../db/schema.js";
 import { db } from "../db/index.js";
 import {
     and,
@@ -13,8 +13,9 @@ import {
 } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { AppError } from "../utils/appError.js";
-import {UpdateMyProfileSchema, updateMyProfileSchema, changePasswordSchema, ChangePasswordSchema, adminCreateUserSchema, AdminCreateUserSchema, UpdateUserSchema, GetUsersQuerySchema} from '../validation/user.validation.js'
+import {UpdateMyProfileSchema, updateMyProfileSchema, changePasswordSchema, ChangePasswordSchema, adminCreateUserSchema, AdminCreateUserSchema, UpdateUserSchema, GetUsersQuerySchema, UpdateProfileSchema} from '../validation/user.validation.js'
 import { comparePassword, hashPassword } from "./auth.services.js";
+
 
 export const userProfile = async (userId: number) => {
 
@@ -45,7 +46,7 @@ export const updateMyProfile = async (userId: number, data: UpdateMyProfileSchem
     }
     
     const [updatedUser] = await db.update(users)
-                .set(parsed.data)
+                .set(updateData)
                 .where(eq(users.id, userId))
                 .returning({
                     id: users.id,
@@ -103,22 +104,32 @@ export const createUserAccount = async (data: AdminCreateUserSchema) => {
 
         const hasedPassword = await hashPassword(password)
 
-        const [newUser] = await db.insert(users).values({
-            username,
-            email,
-            name,
-            lastName,
-            middleName,
-            password: hasedPassword,
-            role: role || 'user'
-        })
-        .returning({
-            id: users.id,
-            username: users.username,
-            lastName: users.lastName,
-            middleName: users.middleName,
-            email: users.email,
-            name: users.name
+        const newUser = await db.transaction(async (tx) => {
+            const [createdUser] = await tx.insert(users).values({
+                username,
+                email,
+                name,
+                lastName,
+                middleName,
+                password: hasedPassword,
+                role: role || 'user'
+            })
+            .returning({
+                id: users.id,
+                username: users.username,
+                lastName: users.lastName,
+                middleName: users.middleName,
+                email: users.email,
+                name: users.name
+            })
+
+            if (!createdUser) throw new AppError('Failed to create user', 400)
+
+            await tx.insert(profile).values({
+                userId: createdUser.id
+            })
+
+            return createdUser
         })
 
         if (!newUser) throw new AppError('Failed to create user', 400)
@@ -296,4 +307,105 @@ export const deleteUser = async (userId: number) => {
     if (!deletedUser) throw new AppError('User not found', 404)
 
     return deletedUser
+}
+
+export const getProfileUser = async (userId: number) => {
+    const userProfile = await db.query.profile.findFirst({
+        where: eq(profile.userId, userId),
+        columns: {
+            profileUrl: true,
+            bio: true,
+            createdAt: false,
+            updatedAt: false
+        },
+        with: {
+            user: {
+                columns: {
+                    username: true,
+                    email: true,
+                    name: true,
+                    middleName: true,
+                    lastName: true
+                }
+            }
+        }
+    })
+
+    if (userProfile) return userProfile
+
+    const existingUser = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        columns: {
+            username: true,
+            email: true,
+            name: true,
+            middleName: true,
+            lastName: true
+        }
+    })
+
+    if (!existingUser) throw new AppError('User not found', 404)
+
+    const [createdProfile] = await db.insert(profile).values({
+        userId
+    })
+    .onConflictDoNothing({
+        target: profile.userId
+    })
+    .returning({
+        profileUrl: profile.profileUrl,
+        bio: profile.bio
+    })
+
+    return {
+        profileUrl: createdProfile?.profileUrl ?? null,
+        bio: createdProfile?.bio ?? null,
+        user: existingUser
+    }
+}
+
+export const updateProfileUser = async (userId: number, data: unknown) => {
+    const parsed = UpdateProfileSchema.safeParse(data)
+
+    if(!parsed.success) {
+        const errors = parsed.error.flatten().fieldErrors
+        const msgVal = Object.values(errors).flat()[0] || 'Invalid Data'
+
+        throw new AppError(msgVal, 400)
+    }
+
+    const updatedData = Object.fromEntries(
+        Object.entries(parsed.data).filter(([_, value]) => value !== undefined)
+    )
+
+    if (Object.keys(updatedData).length === 0) {
+        throw new AppError('No fields to update', 400)
+    } 
+
+    const existingUser = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        columns: {
+            id: true
+        }
+    })
+
+    if (!existingUser) throw new AppError('User not found', 404)
+
+    const [updatedProfile] = await db.insert(profile)
+                                    .values({
+                                        userId,
+                                        ...updatedData
+                                    })
+                                    .onConflictDoUpdate({
+                                        target: profile.userId,
+                                        set: updatedData
+                                    })
+                                    .returning({
+                                        profileUrl: profile.profileUrl,
+                                        bio: profile.bio
+                                    })
+
+    if (!updatedProfile) throw new AppError('Failed to update profile', 400)
+        
+    return updatedProfile
 }

@@ -36,6 +36,20 @@
       "when": 1778547320868,
       "tag": "0004_ancient_joshua_kane",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778633865912,
+      "tag": "0005_common_living_tribunal",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778634049471,
+      "tag": "0006_majestic_quasar",
+      "breakpoints": true
     }
   ]
 }

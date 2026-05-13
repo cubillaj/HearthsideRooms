@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, getApiError } from '../../lib/api'
 import { createSocket } from '../../lib/socket'
 
-export const ChatShell = ({ token, user }) => {
+export const ChatShell = ({ token, user, onOpenProfile }) => {
   const socket = useMemo(() => createSocket(token), [token])
   const [newRoomName, setNewRoomName] = useState('')
   const [newRoomPassword, setNewRoomPassword] = useState('')
@@ -244,6 +244,17 @@ export const ChatShell = ({ token, user }) => {
             </div>
             <button className="close-sidebar-btn block md:hidden" onClick={() => setSidebarOpen(false)} type="button" aria-label="Close sidebar">✕</button>
           </div>
+
+          <button
+            className="profile-open-btn"
+            onClick={() => {
+              setSidebarOpen(false)
+              onOpenProfile?.()
+            }}
+            type="button"
+          >
+            Profile settings
+          </button>
 
           {/* Create room */}
           <form onSubmit={createRoom}>

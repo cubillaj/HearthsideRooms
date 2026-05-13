@@ -1,6 +1,7 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { handleControllererror } from "../utils/handleErrorController.js";
 import * as UserService from '../services/users.services.js'
+import { uploadImageToCloudinary } from "../middleware/upload.middleware.js";
 
 export const userProfileController = async (req: Request, res: Response) => {
     try {
@@ -18,7 +19,7 @@ export const userProfileController = async (req: Request, res: Response) => {
     }
 }
 
-export const updateMyProfileController = async (req: Request, res: Response) => {
+export const updateMyInfoController = async (req: Request, res: Response) => {
     try {
         const { name, middleName, username, lastName} = req.body
 
@@ -136,6 +137,53 @@ export const deleteUserController = async (req: Request, res: Response) => {
             message: 'Successfully deleted user!'
         })
     } catch(error) {
+        return handleControllererror(res, error)
+    }
+}
+
+export const getProfileController = async (req: Request, res: Response) => {
+    try {
+        const userId = Number(req.user?.id) 
+
+        if (!userId) return res.status(400).json({ message: 'User id is required'})
+
+        const user = await UserService.getProfileUser(userId)
+
+        return res.status(200).json({
+            user
+        })
+    } catch (error) {
+        return handleControllererror(res, error)
+    }
+}
+
+export const updateProfileController = async (req: Request, res: Response) => {
+    try {
+        const userId = Number(req.user?.id)
+
+        if (!userId) return res.status(400).json({ message: 'User id is required'})
+
+        const profileData = { ...req.body }
+
+        if (req.file) {
+            const uploaded = await uploadImageToCloudinary(req.file, {
+                folder: 'socketio/profiles',
+                transformation: [
+                    { width: 512, height: 512, crop: 'fill', gravity: 'face' },
+                    { quality: 'auto', fetch_format: 'auto' }
+                ]
+            })
+
+            profileData.profileUrl = uploaded.secure_url
+        }
+
+        const profile = await UserService.updateProfileUser(userId, profileData)
+
+        return res.status(200).json({
+            message: 'Successfully updated profile!',
+            profile
+        })
+    } catch (error) {
         return handleControllererror(res, error)
     }
 }

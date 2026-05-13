@@ -1,6 +1,5 @@
 import { relations } from "drizzle-orm";
 import { integer, serial, varchar, pgTable, timestamp, text, primaryKey, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
-
 const timeStamps = {
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updatedAt').defaultNow().$onUpdate(() => new Date()).notNull()
@@ -30,6 +29,14 @@ export const users = pgTable('users', {
     createdAt: index('users_created_at_idx')
         .on(table.createdAt),
 }))
+
+export const profile = pgTable('profile', {
+    id: serial('id').primaryKey().notNull(),
+    userId: integer('user_id').references(() => users.id, { onDelete: 'cascade'}).notNull().unique(),
+    profileUrl: text('profile_url'),
+    bio: varchar('bio', {length: 150}),
+    ...timeStamps
+})
 
 export const refreshTokens = pgTable('refresh_token', {
     id: serial('id').primaryKey(),
@@ -79,12 +86,25 @@ export const messageReads = pgTable('messageReads', {
     })
 )
 
-export const userRelations = relations(users, ({ many}) => {
+export const userRelations = relations(users, ({one, many}) => {
     return {
         createdRooms: many(rooms),
         messages: many(messages),
         roomMembers: many(roomMembers),
-        messageReads: many(messageReads)
+        messageReads: many(messageReads),
+        profile: one(profile, {
+            fields: [users.id],
+            references: [profile.userId]
+        })
+    }
+})
+
+export const profileRelations = relations(profile, ({ one}) => {
+    return {
+        user: one(users, {
+            fields: [profile.userId],
+            references: [users.id]
+        })
     }
 })
 
@@ -162,3 +182,6 @@ export type NewMessage = typeof messages.$inferInsert
 
 export type RoomMember = typeof roomMembers.$inferSelect
 export type NewRoomMember = typeof roomMembers.$inferInsert
+
+export type Profile = typeof profile.$inferSelect
+export type NewProfile = typeof profile.$inferInsert

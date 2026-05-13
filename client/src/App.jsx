@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { AuthPanel } from './features/auth/AuthPanel'
 import { ChatShell } from './features/chat/ChatShell'
+import { ProfilePage } from './features/profile/ProfilePage'
 import { api, clearAccessToken, setAccessToken } from './lib/api'
 
 const App = () => {
   const [token, setToken] = useState(null)
   const [user, setUser] = useState(null)
+  const [view, setView] = useState('chat')
   const [checkingSession, setCheckingSession] = useState(true)
 
   const handleAuth = ({ token: nextToken, user: nextUser }) => {
@@ -24,6 +26,7 @@ const App = () => {
     clearAccessToken()
     setToken(null)
     setUser(null)
+    setView('chat')
   }
 
   useEffect(() => {
@@ -88,7 +91,22 @@ const App = () => {
             </div>
           </section>
         ) : token ? (
-          <ChatShell key={`${user?.id || 'user'}-${token}`} token={token} user={user} />
+          view === 'profile' ? (
+            <ProfilePage
+              onBack={() => setView('chat')}
+              onUserUpdate={(nextUser) => {
+                if (nextUser) setUser((current) => ({ ...current, ...nextUser }))
+              }}
+              user={user}
+            />
+          ) : (
+            <ChatShell
+              key={`${user?.id || 'user'}-${token}`}
+              onOpenProfile={() => setView('profile')}
+              token={token}
+              user={user}
+            />
+          )
         ) : (
           <AuthPanel onAuth={handleAuth} />
         )}
