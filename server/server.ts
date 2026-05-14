@@ -10,6 +10,7 @@ import cookieParser from 'cookie-parser'
 import { errorMiddleware } from './src/middleware/error.middleware.js'
 import rateLimit from 'express-rate-limit'
 const app = express()
+app.set('trust proxy', 1)
 const devOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174']
 
 app.use(cors({
