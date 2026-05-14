@@ -19,14 +19,6 @@ app.use(cors({
 app.use(express.json())
 app.use(cookieParser())
 
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 10,
-    message: 'Too many login attempts, please try again after 15 mins.',
-    standardHeaders: true,
-    legacyHeaders: false
-})
-
 const server = http.createServer(app)
 const PORT = process.env.PORT || 3000
 
