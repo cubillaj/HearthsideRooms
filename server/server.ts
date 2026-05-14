@@ -8,7 +8,7 @@ import roomRouter from './src/routes/room.routes.js'
 import messageRouter from './src/routes/message.routes.js'
 import cookieParser from 'cookie-parser'
 import { errorMiddleware } from './src/middleware/error.middleware.js'
-
+import rateLimit from 'express-rate-limit'
 const app = express()
 const devOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174']
 
@@ -18,6 +18,14 @@ app.use(cors({
 }))
 app.use(express.json())
 app.use(cookieParser())
+
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: 'Too many login attempts, please try again after 15 mins.',
+    standardHeaders: true,
+    legacyHeaders: false
+})
 
 const server = http.createServer(app)
 const PORT = process.env.PORT || 3000
