@@ -41,6 +41,8 @@ export const AdminPage = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState('users')
   const [users, setUsers] = useState([])
   const [rooms, setRooms] = useState([])
+  const [userPagination, setUserPagination] = useState(null)
+  const [roomPagination, setRoomPagination] = useState(null)
   const [query, setQuery] = useState({
     search: '',
     status: '',
@@ -79,9 +81,11 @@ export const AdminPage = ({ onBack }) => {
 
       const { data } = await api.get('/users', { params })
       setUsers(data.users || [])
+      setUserPagination(data.pagination || null)
     } catch (err) {
       setError(getApiError(err))
       setUsers([])
+      setUserPagination(null)
     } finally {
       setLoading(false)
     }
@@ -103,9 +107,11 @@ export const AdminPage = ({ onBack }) => {
 
       const { data } = await api.get('/rooms/admin', { params })
       setRooms(data.rooms || [])
+      setRoomPagination(data.pagination || null)
     } catch (err) {
       setError(getApiError(err))
       setRooms([])
+      setRoomPagination(null)
     } finally {
       setRoomsLoading(false)
     }
@@ -338,11 +344,11 @@ export const AdminPage = ({ onBack }) => {
           </div>
 
           <div className="admin-pagination">
-            <button className="btn-ghost" disabled={query.page <= 1 || loading} onClick={() => updateQuery('page', query.page - 1)} type="button">
+            <button className="btn-ghost" disabled={!userPagination?.hasPrevPage || loading} onClick={() => updateQuery('page', query.page - 1)} type="button">
               Previous
             </button>
-            <span>Page {query.page}</span>
-            <button className="btn-ghost" disabled={users.length < 10 || loading} onClick={() => updateQuery('page', query.page + 1)} type="button">
+            <span>Page {userPagination?.page || query.page}</span>
+            <button className="btn-ghost" disabled={!userPagination?.hasNextPage || loading} onClick={() => updateQuery('page', query.page + 1)} type="button">
               Next
             </button>
           </div>
@@ -399,11 +405,11 @@ export const AdminPage = ({ onBack }) => {
           </div>
 
           <div className="admin-pagination">
-            <button className="btn-ghost" disabled={roomQuery.page <= 1 || roomsLoading} onClick={() => updateRoomQuery('page', roomQuery.page - 1)} type="button">
+            <button className="btn-ghost" disabled={!roomPagination?.hasPrevPage || roomsLoading} onClick={() => updateRoomQuery('page', roomQuery.page - 1)} type="button">
               Previous
             </button>
-            <span>Page {roomQuery.page}</span>
-            <button className="btn-ghost" disabled={rooms.length < 10 || roomsLoading} onClick={() => updateRoomQuery('page', roomQuery.page + 1)} type="button">
+            <span>Page {roomPagination?.page || roomQuery.page}</span>
+            <button className="btn-ghost" disabled={!roomPagination?.hasNextPage || roomsLoading} onClick={() => updateRoomQuery('page', roomQuery.page + 1)} type="button">
               Next
             </button>
           </div>

@@ -2,7 +2,7 @@ import { roomMembers, rooms, users } from "../db/schema.js";
 import { db } from "../db/index.js";
 import { DeleteRoomSchema, GetQueryRoomSchema, GetRoomSchema, RoomPasswordSchema, roomPasswordSchema, RoomSchema, roomSchema } from "../validation/room.validation.js";
 import { AppError } from "../utils/appError.js";
-import { and, asc, desc, eq, gte, ilike, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, lte, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { comparePassword, hashPassword } from "./auth.services.js";
 
@@ -256,9 +256,25 @@ export const getAllRoomsForAdmin = async (query: unknown) => {
         }
     })
 
-    if (allRooms.length === 0) return []
+    const [{ count }] = await db.
+                                select({ count: sql<number>`count(*)` })
+                                .from(rooms)
+                                .where(and(...filters))
 
-    return allRooms
+    const total = Number(count)
+    const totalPages = Math.ceil(total / limit)
+
+    return {
+        rooms: allRooms,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1
+        }
+    }
 }
 
 export const getSingleRoom = async (data: unknown) => {

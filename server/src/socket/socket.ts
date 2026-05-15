@@ -8,6 +8,7 @@ import { db } from '../db/index.js'
 import { roomMembers} from '../db/schema.js'
 import { eq, and } from 'drizzle-orm'
 import { roomSchema } from '../validation/room.validation.js'
+import { AppError } from '../utils/appError.js'
 let io: SocketIOServer | undefined
 const onlineUsers = new Map<number, number>()
 
@@ -139,7 +140,7 @@ export const initSocket = (server: HttpServer): SocketIOServer => {
                 io?.to(newMessage.roomId.toString()).emit('receive_message', newMessage)
             } catch (error) {
                 socket.emit('message_error', {
-                    message: 'Failed to send message'
+                    message: error instanceof AppError ? error.message : 'Failed to send message'
                 })
             }
         })

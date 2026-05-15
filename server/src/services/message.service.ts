@@ -7,18 +7,32 @@ import { AppError } from '../utils/appError.js'
 export const createMessage = async (userId: number, roomId: number, data: NewMessageInput) => {
     const parsed = newMessageSchema.safeParse(data)
 
-    if (!parsed.success) throw new AppError('Invalid data', 400)
+    if (!parsed.success) {
+        const errors = parsed.error.flatten().fieldErrors
+        const msgVal = Object.values(errors).flat()[0] || 'Invalid data'
 
-    const [member] = await db.select()
-                            .from(roomMembers)
-                            .where(
-                                and(
-                                    eq(roomMembers.roomId, roomId),
-                                    eq(roomMembers.userId, userId)
-                                )
-                            )
+        throw new AppError(msgVal, 400)
+    }
 
-    if (!member) throw new AppError('You are not member of this room', 400)
+    const member = await db.query.roomMembers.findFirst({
+        where: and(
+            eq(roomMembers.roomId, roomId),
+            eq(roomMembers.userId, userId)
+        ),
+        with: {
+            user: {
+                columns: {
+                    status: true
+                }
+            }
+        }
+    })
+
+    if (!member) {
+        throw new AppError('You are not member of this room', 400)
+    } else if (member.user.status !== 'active') {
+        throw new AppError('Your account is not active', 403)
+    }
     
     const [newMessage] = await db.insert(messages).values({
         userId,

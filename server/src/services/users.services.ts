@@ -9,7 +9,8 @@ import {
     ne,
     or,
     gte,
-    lte
+    lte,
+    sql
 } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { AppError } from "../utils/appError.js";
@@ -218,9 +219,25 @@ export const getAllUsers = async (query: unknown) => {
         }
     })
 
-    if (allUsers.length === 0) return []
+    const [{count}] = await db
+                        .select({ count: sql<number>`count(*)`})
+                        .from(users)
+                        .where(and(...filters))
+
+    const total = Number(count)
+    const totalPages = Math.ceil(total / limit)
     
-    return allUsers
+    return {
+        users: allUsers,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1
+        }
+    }
 }
 
 // get specific user

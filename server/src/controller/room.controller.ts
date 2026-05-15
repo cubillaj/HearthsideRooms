@@ -86,11 +86,9 @@ export const getAllRoomsController = async (req: Request, res: Response) => {
 
 export const getAllRoomsForAdminController = async (req: Request, res: Response) => {
     try {
-        const rooms = await RoomServices.getAllRoomsForAdmin(req.query)
+        const result = await RoomServices.getAllRoomsForAdmin(req.query)
 
-        return res.status(200).json({
-            rooms
-        })
+        return res.status(200).json(result)
     } catch (error) {
         return handleControllererror(res, error)
     }

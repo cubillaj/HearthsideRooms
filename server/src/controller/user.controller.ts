@@ -79,11 +79,9 @@ export const createAccountByAdminController = async (req: Request, res: Response
 
 export const getAllUserController = async (req: Request, res: Response) => {
     try {
-        const users = await UserService.getAllUsers(req.query)
+        const result = await UserService.getAllUsers(req.query)
 
-        return res.status(200).json({
-            users
-        })
+        return res.status(200).json(result)
     } catch (error) {
         return handleControllererror(res, error)
     }

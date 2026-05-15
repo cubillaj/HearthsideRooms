@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const roomSchema = z.object({
-    roomName: z.string().min(1, 'Room name is required'),
+    roomName: z.string({ error: 'Room name is required'}).min(1, 'Room name is required'),
     roomPassword: z.string().optional(),
 })
 
