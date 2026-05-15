@@ -32,6 +32,13 @@ export const registerController = async (req: Request, res: Response) => {
 export const loginController = async (req: Request, res: Response ) => {
     try {
         const user = await AuthService.login(req.body)
+
+        const oldRefreshToken = req.cookies.refreshToken 
+
+        if (oldRefreshToken) {
+            await AuthService.revokeRefreshToken(oldRefreshToken)
+        }
+        
         const refreshToken = await AuthService.createRefreshToken(user.user.id)
 
         res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS)
