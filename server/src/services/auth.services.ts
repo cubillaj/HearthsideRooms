@@ -56,7 +56,7 @@ export const createRefreshToken = async (userId: number) => {
     await revokeAllUserTokens(userId) // ensure one active refresh token per user for better security
 
     const token = randomBytes(64).toString('hex')
-    const expiresAt = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000) // 1 day   
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days   
     
     const parsed = tokenValidation.tokenSchema.safeParse({ userId, token, expiresAt})
 
