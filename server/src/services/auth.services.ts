@@ -6,9 +6,8 @@ import jwt from 'jsonwebtoken'
 import * as tokenValidation from '../validation/token.validation.js'
 import * as userValidation from '../validation/user.validation.js'
 import * as UserService from '../services/users.services.js'
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { AppError } from "../utils/appError.js";
-import { validationMessage } from "../utils/zodValidationError.js";
 
 const JWT_SECRET: any = process.env.JWT_SECRET 
 const JWT_EXPIRES_IN: any = process.env.EXPIRES_IN || '15m'
@@ -51,14 +50,19 @@ export const getUserById = async (userId: number) => {
     return safeUser
 }
 
+// helper to hash refToken
+export const hashRefreshToken = (token: string) => {
+    return createHash('sha256').update(token).digest('hex')
+}
+
 // refresh token long lived stored in db + httpOnly cookie
 export const createRefreshToken = async (userId: number) => {
-    // await revokeAllUserTokens(userId) // ensure one active refresh token per user for better security
 
     const token = randomBytes(64).toString('hex')
+    const tokenHash = hashRefreshToken(token)
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days   
     
-    const parsed = tokenValidation.tokenSchema.safeParse({ userId, token, expiresAt})
+    const parsed = tokenValidation.tokenSchema.safeParse({ userId, token: tokenHash, expiresAt})
 
     if (!parsed.success) throw new AppError('Invalid data', 400)
 
@@ -68,12 +72,13 @@ export const createRefreshToken = async (userId: number) => {
         { userId: id, token: validatedToken, expiresAt: validatedExpiresAt, createdAt: new Date()  }
     )
 
-    return validatedToken
+    return token
 }
 
 // remove the refresh token in the database
 export const revokeRefreshToken = async (token: string) => {
-    await db.delete(refreshTokens).where(eq(refreshTokens.token, token))
+    const oldTokenHash = hashRefreshToken(token)
+    await db.delete(refreshTokens).where(eq(refreshTokens.token, oldTokenHash))
 }
 
 // to remove refresh token on a specific user
@@ -82,13 +87,13 @@ export const revokeAllUserTokens = async (userId: number) => {
 }
 
 export const rotateRefreshToken = async (oldToken: string) => {
-
+    const oldTokenHash = hashRefreshToken(oldToken)
     // find the old token and make sure it is not expired
     const [existing] = await db.select()
                                     .from(refreshTokens)
                                     .where(
                                         and(
-                                            eq(refreshTokens.token, oldToken),
+                                            eq(refreshTokens.token, oldTokenHash),
                                             gt(refreshTokens.expiresAt, new Date())
                                         )
                                     )
@@ -97,7 +102,7 @@ export const rotateRefreshToken = async (oldToken: string) => {
     if (!existing) throw new AppError('Invalid or expired refresh token', 409)
 
     // delete the old one (rotation - each refresh token is single-use)
-    await db.delete(refreshTokens).where(eq(refreshTokens.token, oldToken))
+    await db.delete(refreshTokens).where(eq(refreshTokens.token, oldTokenHash))
 
     // issue a new one
     const newToken = await createRefreshToken(existing.userId)
