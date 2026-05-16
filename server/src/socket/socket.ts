@@ -159,12 +159,16 @@ export const initSocket = (server: HttpServer): SocketIOServer => {
             }
         })
 
-        socket.on('mark_room_read', async (roomId: number) => {
+        socket.on('mark_room_read', async (payload: number | { roomId: number, messageIds?: number[] }) => {
             try {
-                const receipts = await MessageService.markRoomMessagesAsRead(userId, Number(roomId))
+                const roomId = typeof payload === 'object' ? Number(payload.roomId) : Number(payload)
+                const messageIds = typeof payload === 'object' && Array.isArray(payload.messageIds)
+                    ? payload.messageIds.map(Number).filter(Number.isFinite)
+                    : undefined
+                const receipts = await MessageService.markRoomMessagesAsRead(userId, roomId, messageIds)
 
                 receipts.forEach((receipt) => {
-                    io?.to(Number(roomId).toString()).emit('message_read_receipt', receipt)
+                    io?.to(roomId.toString()).emit('message_read_receipt', receipt)
                 })
             } catch (error) {
                 socket.emit('message_error', {

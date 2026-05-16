@@ -1,7 +1,7 @@
-import { newMessageSchema, type NewMessageInput } from '../validation/message.js'
+import { MessageHistoryQuerySchema, newMessageSchema, type NewMessageInput } from '../validation/message.js'
 import { messageReads, messages,roomMembers, users } from '../db/schema.js'
 import { db } from '../db/index.js'
-import { eq, and, asc, ne } from 'drizzle-orm'
+import { eq, and, asc, ne, SQL, ilike, gte, lte, desc, sql, isNull, inArray } from 'drizzle-orm'
 import { AppError } from '../utils/appError.js'
 
 export const createMessage = async (userId: number, roomId: number, data: NewMessageInput) => {
@@ -22,6 +22,11 @@ export const createMessage = async (userId: number, roomId: number, data: NewMes
         with: {
             user: {
                 columns: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    middleName: true,
+                    lastName: true,
                     status: true
                 }
             }
@@ -49,28 +54,19 @@ export const createMessage = async (userId: number, roomId: number, data: NewMes
 
     if (!newMessage) throw new AppError('Failed to send a message', 400)
 
-    const [messageWithUser] = await db.select({
-                                    id: messages.id,
-                                    roomId: messages.roomId,
-                                    userId: messages.userId,
-                                    message: messages.message,
-                                    createdAt: messages.createdAt,
-                                    user: {
-                                        id: users.id,
-                                        username: users.username,
-                                        name: users.name,
-                                        middleName: users.middleName,
-                                        lastName: users.lastName,
-                                    }
-                                })
-                                .from(messages)
-                                .leftJoin(users, eq(messages.userId, users.id))
-                                .where(eq(messages.id, newMessage.id))
-
-    return messageWithUser || newMessage
+    return {
+        ...newMessage,
+        user: {
+            id: member.user.id,
+            username: member.user.username,
+            name: member.user.name,
+            middleName: member.user.middleName,
+            lastName: member.user.lastName,
+        }
+    }
 }
 
-export const markRoomMessagesAsRead = async (userId: number, roomId: number ) => {
+export const markRoomMessagesAsRead = async (userId: number, roomId: number, messageIds?: number[] ) => {
     const [member] = await db.select()
                         .from(roomMembers)
                         .where(and(
@@ -80,14 +76,25 @@ export const markRoomMessagesAsRead = async (userId: number, roomId: number ) =>
 
     if (!member) throw new AppError('You are not member of this room', 403)
 
+    const filters: SQL[] = [
+        eq(messages.roomId, roomId),
+        ne(messages.userId, userId)
+    ]
+
+    if (messageIds?.length) {
+        filters.push(inArray(messages.id, messageIds))
+    }
+
     const roomMessages = await db.select({ id: messages.id})
                                  .from(messages)
-                                 .where(
+                                 .leftJoin(
+                                    messageReads,
                                     and(
-                                        eq(messages.roomId, roomId),
-                                        ne(messages.userId, userId)
+                                        eq(messageReads.userId, userId),
+                                        eq(messageReads.messageId, messages.id)
                                     )
                                  )
+                                 .where(and(...filters, isNull(messageReads.messageId)))
     
     if (roomMessages.length === 0) return []
 
@@ -100,9 +107,20 @@ export const markRoomMessagesAsRead = async (userId: number, roomId: number ) =>
             )
             .onConflictDoNothing()
 
-    const readReceipts = await Promise.all(
-        roomMessages.map((message) => getMessageReadReceipt(userId, message.id))
-    )
+    const readReceipts = await db.select({
+                                messageId: messageReads.messageId,
+                                readAt: messageReads.readAt,
+                                user: {
+                                    id: users.id,
+                                    username: users.username
+                                }
+                            })
+                            .from(messageReads)
+                            .leftJoin(users, eq(messageReads.userId, users.id))
+                            .where(and(
+                                eq(messageReads.userId, userId),
+                                inArray(messageReads.messageId, roomMessages.map((message) => message.id))
+                            ))
 
     return readReceipts.filter(Boolean)
 }
@@ -158,7 +176,7 @@ const getMessageReadReceipt = async (userId: number, messageId: number) => {
     return receipt
 }
 
-export const getMessageHistory = async (userId: number, roomId: number) => {
+export const getMessageHistory = async (userId: number, roomId: number, queryData: unknown) => {
     const [member] = await db.select()
                             .from(roomMembers)
                             .where(and(
@@ -168,10 +186,53 @@ export const getMessageHistory = async (userId: number, roomId: number) => {
 
     if (!member) throw new AppError('You are not a member of this room', 403)
 
-    await markRoomMessagesAsRead(userId, roomId)
+    const parsed = MessageHistoryQuerySchema.safeParse(queryData)
+
+    if (!parsed.success) {
+        const errors = parsed.error.flatten().fieldErrors
+        const msgVal = Object.values(errors).flat()[0] || 'Invalid data'
+
+        throw new AppError(msgVal, 400)
+    }
+
+    const { search, limit, page, createdFrom, createdTo, sortBy, sortOrder} = parsed.data
+
+    const filters: SQL[] = [
+        eq(messages.roomId, roomId)
+    ]
+
+    if (search) {
+        const searchFilter = ilike(messages.message, `%${search}%`)
+
+        if (searchFilter) {
+            filters.push(searchFilter)
+        }
+    }
+
+    if (createdFrom) {
+        filters.push(gte(messages.createdAt, createdFrom))
+    }
+
+    if (createdTo) {
+        filters.push(lte(messages.createdAt, createdTo))
+    }
+
+    const sortColumn = {
+        createdAt: messages.createdAt
+    }[sortBy]
+    
+    const orderBy = 
+        sortOrder === 'asc'
+            ? asc(sortColumn)
+            : desc(sortColumn)
+
+    const offset = (page - 1) * limit
 
     const messageHistory = await db.query.messages.findMany({
-        where: eq(messages.roomId, roomId),
+        where: and(...filters),
+        orderBy,
+        limit, 
+        offset,
         columns: {
             id: true,
             roomId: true,
@@ -201,7 +262,24 @@ export const getMessageHistory = async (userId: number, roomId: number) => {
                 }
             }
         },
-        orderBy: asc(messages.createdAt)
     })
-    return messageHistory
+
+    const [{count}] = await db
+                            .select({ count: sql<number>`count(*)`})
+                            .from(messages)
+                            .where(and(...filters))
+
+    const total = Number(count)
+    const totalPages = Math.ceil(total / limit)
+    return {
+        messages: messageHistory,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1
+        }
+    }
 }

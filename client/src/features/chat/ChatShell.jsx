@@ -115,8 +115,12 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
   const loadMessageHistory = useCallback(async (nextRoomId) => {
     try {
       const { data } = await api.get(`/messages/${nextRoomId}/messages`)
-      setMessages(data.messages || [])
-      socket.emit('mark_room_read', nextRoomId)
+      const nextMessages = data.messages || []
+      setMessages(nextMessages)
+      socket.emit('mark_room_read', {
+        roomId: nextRoomId,
+        messageIds: nextMessages.map((item) => item.id).filter(Boolean),
+      })
     } catch (err) { setError(getApiError(err)); setMessages([]) }
   }, [socket])
 
@@ -388,6 +392,7 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
                 const messageUserId = Number(item.userId ?? item.user?.id)
                 const isMine = Number.isFinite(currentUserId) && messageUserId === currentUserId
                 const readBy = (item.messageReads || [])
+                  .filter((read) => Number(read.user?.id) !== currentUserId)
                   .map((read) => read.user?.username || `User ${read.user?.id}`)
                   .filter(Boolean)
 

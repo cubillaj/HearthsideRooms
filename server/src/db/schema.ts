@@ -1,3 +1,4 @@
+import { table } from "console";
 import { relations } from "drizzle-orm";
 import { integer, serial, varchar, pgTable, timestamp, text, primaryKey, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
 const timeStamps = {
@@ -52,7 +53,10 @@ export const rooms = pgTable('rooms', {
     roomPassword: varchar('room_password', { length: 100}),
     createdBy: integer('created_by').references(() => users.id).notNull(),
     ...timeStamps
-})
+}, (table) => ({
+    roomNameIdx: index('room_name_idx')
+        .on(table.roomName)
+}))
 
 export const roomMembers = pgTable('room_member', {
     userId: integer('user_id').references(() => users.id ).notNull(),
@@ -72,7 +76,13 @@ export const messages = pgTable('messages', {
     message: text('message').notNull(),
     userId: integer('user_id').references(() => users.id).notNull(),
     ...timeStamps
-})
+}, (table) => ({
+    roomIdIdx: index('room_id_idx')
+        .on(table.roomId),
+    createdAtIdx: index('created_at_idx')
+        .on(table.createdAt)
+}))
+
 
 export const messageReads = pgTable('messageReads', {
     userId: integer('user_id').references(() => users.id).notNull(),
@@ -82,7 +92,11 @@ export const messageReads = pgTable('messageReads', {
     (table) => ({
         pk: primaryKey({
             columns: [table.userId, table.messageId]
-        })
+        }),
+        userIdIdx: index('user_id_idx')
+            .on(table.userId),
+        messageIdIdx: index('message_id_idx')
+            .on(table.messageId)
     })
 )
 

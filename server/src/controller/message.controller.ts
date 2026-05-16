@@ -41,11 +41,9 @@ export const messageHistoryController = async (req: Request, res: Response) => {
 
         if (!roomId) return res.status(400).json({ message: 'room id is required'})
 
-        const messages = await MessageService.getMessageHistory(userId, roomId)
+        const result = await MessageService.getMessageHistory(userId, roomId, req.query)
 
-        return res.status(200).json({
-            messages
-        })
+        return res.status(200).json(result)
     } catch (error) {
         return handleControllererror(res, error)
     }

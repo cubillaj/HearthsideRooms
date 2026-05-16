@@ -50,6 +50,13 @@
       "when": 1778634049471,
       "tag": "0006_majestic_quasar",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1778889093678,
+      "tag": "0007_mushy_wonder_man",
+      "breakpoints": true
     }
   ]
 }

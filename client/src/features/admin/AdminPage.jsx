@@ -50,11 +50,13 @@ export const AdminPage = ({ onBack }) => {
     sortOrder: 'desc',
     page: 1,
   })
+  const [searchInput, setSearchInput] = useState('')
   const [roomQuery, setRoomQuery] = useState({
     search: '',
     sortOrder: 'desc',
     page: 1,
   })
+  const [roomSearchInput, setRoomSearchInput] = useState('')
   const [createForm, setCreateForm] = useState(emptyCreateForm)
   const [editingUser, setEditingUser] = useState(null)
   const [editForm, setEditForm] = useState(emptyEditForm)
@@ -130,6 +132,38 @@ export const AdminPage = ({ onBack }) => {
       mounted = false
     }
   }, [activeTab, loadRooms, loadUsers])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setQuery((current) => {
+        if (current.search === searchInput) return current
+
+        return {
+          ...current,
+          search: searchInput,
+          page: 1,
+        }
+      })
+    }, 600)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchInput])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setRoomQuery((current) => {
+        if (current.search === roomSearchInput) return current
+
+        return {
+          ...current,
+          search: roomSearchInput,
+          page: 1,
+        }
+      })
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [roomSearchInput])
 
   const updateQuery = (field, value) => {
     setQuery((current) => ({
@@ -293,7 +327,7 @@ export const AdminPage = ({ onBack }) => {
 
         <div className="admin-users-panel">
           <div className="admin-filters">
-            <input className="cozy-input" placeholder="Search name, email, username" value={query.search} onChange={(e) => updateQuery('search', e.target.value)} />
+            <input className="cozy-input" placeholder="Search name, email, username" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
             <select className="cozy-input" value={query.status} onChange={(e) => updateQuery('status', e.target.value)}>
               <option value="">All status</option>
               <option value="active">Active</option>
@@ -357,7 +391,7 @@ export const AdminPage = ({ onBack }) => {
       ) : (
         <div className="admin-users-panel">
           <div className="admin-filters admin-room-filters">
-            <input className="cozy-input" placeholder="Search room name" value={roomQuery.search} onChange={(e) => updateRoomQuery('search', e.target.value)} />
+            <input className="cozy-input" placeholder="Search room name" value={roomSearchInput} onChange={(e) => setRoomSearchInput(e.target.value)} />
             <select className="cozy-input" value={roomQuery.sortOrder} onChange={(e) => updateRoomQuery('sortOrder', e.target.value)}>
               <option value="desc">Newest first</option>
               <option value="asc">Oldest first</option>
