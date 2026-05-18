@@ -3,6 +3,18 @@ import { messageReads, messages,roomMembers, users } from '../db/schema.js'
 import { db } from '../db/index.js'
 import { eq, and, asc, ne, SQL, ilike, gte, lte, desc, sql, isNull, inArray } from 'drizzle-orm'
 import { AppError } from '../utils/appError.js'
+import { redis } from '../redis/redis.js'
+
+async function clearRoomMessageHistoryCache(roomId: number) {
+    const keys = [
+        ...await redis.keys(`messageHistory:${roomId}:*`),
+        ...await redis.keys(`messageHistory:${roomId}*`)
+    ]
+
+    if (keys.length > 0) {
+        await redis.del([...new Set(keys)])
+    }
+}
 
 export const createMessage = async (userId: number, roomId: number, data: NewMessageInput) => {
     const parsed = newMessageSchema.safeParse(data)
@@ -53,6 +65,8 @@ export const createMessage = async (userId: number, roomId: number, data: NewMes
     })
 
     if (!newMessage) throw new AppError('Failed to send a message', 400)
+
+    await clearRoomMessageHistoryCache(roomId)
 
     return {
         ...newMessage,
@@ -107,6 +121,8 @@ export const markRoomMessagesAsRead = async (userId: number, roomId: number, mes
             )
             .onConflictDoNothing()
 
+    await clearRoomMessageHistoryCache(roomId)
+
     const readReceipts = await db.select({
                                 messageId: messageReads.messageId,
                                 readAt: messageReads.readAt,
@@ -153,6 +169,8 @@ export const markMessageAsRead = async (userId: number, messageId: number) => {
                 messageId
             })
             .onConflictDoNothing()
+
+    await clearRoomMessageHistoryCache(message.roomId)
 
     return getMessageReadReceipt(userId, messageId)
 }
@@ -228,6 +246,16 @@ export const getMessageHistory = async (userId: number, roomId: number, queryDat
 
     const offset = (page - 1) * limit
 
+    const cacheKey = `messageHistory:${roomId}:${JSON.stringify(parsed.data)}`
+    const cachedMessageHistroy = await redis.get(cacheKey)
+
+    if(cachedMessageHistroy) {
+        return {
+            ...JSON.parse(cachedMessageHistroy),
+            source: 'redis-cache'
+        }
+    }
+
     const messageHistory = await db.query.messages.findMany({
         where: and(...filters),
         orderBy,
@@ -264,6 +292,11 @@ export const getMessageHistory = async (userId: number, roomId: number, queryDat
         },
     })
 
+    const orderedMessageHistory =
+        sortOrder === 'desc'
+            ? [...messageHistory].reverse()
+            : messageHistory
+
     const [{count}] = await db
                             .select({ count: sql<number>`count(*)`})
                             .from(messages)
@@ -271,8 +304,9 @@ export const getMessageHistory = async (userId: number, roomId: number, queryDat
 
     const total = Number(count)
     const totalPages = Math.ceil(total / limit)
-    return {
-        messages: messageHistory,
+    const result =  {
+        messages: orderedMessageHistory,
+        source: 'neon',
         pagination: {
             page,
             limit,
@@ -282,4 +316,10 @@ export const getMessageHistory = async (userId: number, roomId: number, queryDat
             hasPrevPage: page > 1
         }
     }
+
+    await redis.set(cacheKey, JSON.stringify(result), {
+        EX: 60
+    })
+
+    return result
 }

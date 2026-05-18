@@ -15,6 +15,9 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
   const [myRooms, setMyRooms] = useState([])
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState([])
+  const [messagePage, setMessagePage] = useState(1)
+  const [hasOlderMessages, setHasOlderMessages] = useState(false)
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
   const [typingUsers, setTypingUsers] = useState({})
   const [onlineUserIds, setOnlineUserIds] = useState([])
   const [status, setStatus] = useState('Socket connecting...')
@@ -22,6 +25,9 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const activeRoomRef = useRef(null)
   const scrollRef = useRef(null)
+  const messagesAreaRef = useRef(null)
+  const shouldScrollToBottomRef = useRef(true)
+  const loadingOlderRef = useRef(false)
   const typingTimeoutRef = useRef(null)
 
   const addReadReceipt = useCallback((receipt) => {
@@ -76,6 +82,7 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
     })
     socket.on('receive_message', (nextMessage) => {
       if (nextMessage.roomId !== activeRoomRef.current) return
+      shouldScrollToBottomRef.current = true
       setMessages((current) => [...current, nextMessage])
       setTypingUsers((current) => {
         const next = { ...current }
@@ -100,7 +107,20 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
     }
   }, [addReadReceipt, socket, user?.id])
 
-  useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  useEffect(() => {
+    if (!shouldScrollToBottomRef.current) return
+
+    requestAnimationFrame(() => {
+      const el = messagesAreaRef.current
+
+      if (el) {
+        el.scrollTop = el.scrollHeight
+        return
+      }
+
+      scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
+    })
+  }, [messages])
 
   const loadRooms = useCallback(async () => {
     try {
@@ -116,13 +136,66 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
     try {
       const { data } = await api.get(`/messages/${nextRoomId}/messages`)
       const nextMessages = data.messages || []
+      shouldScrollToBottomRef.current = true
       setMessages(nextMessages)
+      setMessagePage(1)
+      setHasOlderMessages(Boolean(data.pagination?.hasNextPage))
       socket.emit('mark_room_read', {
         roomId: nextRoomId,
         messageIds: nextMessages.map((item) => item.id).filter(Boolean),
       })
-    } catch (err) { setError(getApiError(err)); setMessages([]) }
+    } catch (err) {
+      setError(getApiError(err))
+      setMessages([])
+      setMessagePage(1)
+      setHasOlderMessages(false)
+    }
   }, [socket])
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!activeRoom || !hasOlderMessages || loadingOlderRef.current) return
+
+    const el = messagesAreaRef.current
+    const previousScrollHeight = el?.scrollHeight || 0
+    const nextPage = messagePage + 1
+
+    loadingOlderRef.current = true
+    setLoadingOlderMessages(true)
+
+    try {
+      const { data } = await api.get(`/messages/${activeRoom}/messages?page=${nextPage}&limit=50`)
+      const olderMessages = data.messages || []
+
+      shouldScrollToBottomRef.current = false
+      setMessages((current) => {
+        const existingIds = new Set(current.map((item) => item.id))
+        const uniqueOlderMessages = olderMessages.filter((item) => !existingIds.has(item.id))
+
+        return [...uniqueOlderMessages, ...current]
+      })
+      setMessagePage(nextPage)
+      setHasOlderMessages(Boolean(data.pagination?.hasNextPage))
+
+      requestAnimationFrame(() => {
+        if (!el) return
+
+        el.scrollTop = el.scrollHeight - previousScrollHeight
+      })
+    } catch (err) {
+      setError(getApiError(err))
+    } finally {
+      loadingOlderRef.current = false
+      setLoadingOlderMessages(false)
+    }
+  }, [activeRoom, hasOlderMessages, messagePage])
+
+  const handleMessagesScroll = useCallback(() => {
+    const el = messagesAreaRef.current
+
+    if (!el || el.scrollTop > 80) return
+
+    loadOlderMessages()
+  }, [loadOlderMessages])
 
   useEffect(() => { queueMicrotask(() => { loadRooms() }) }, [loadRooms])
 
@@ -158,6 +231,8 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
         setRoomId(String(createdRoomId))
         setRoomPassword('')
         setMessages([])
+        setMessagePage(1)
+        setHasOlderMessages(false)
         socket.emit('join_room', createdRoomId)
         setActiveRoomName(payload.roomName)
         setSelectedRoom(null)
@@ -190,6 +265,8 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
     setActiveRoom(null)
     setActiveRoomName(room.roomName)
     setMessages([])
+    setMessagePage(1)
+    setHasOlderMessages(false)
     setTypingUsers({})
   }
 
@@ -362,7 +439,7 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
             </div>
           </div>
 
-          <div className="messages-area">
+          <div className="messages-area" onScroll={handleMessagesScroll} ref={messagesAreaRef}>
             {selectedRoom && !activeRoom ? (
               <div className="empty-state">
                 <div className="empty-card">
@@ -387,7 +464,11 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
                 </div>
               </div>
             ) : (
-              messages.map((item, index) => {
+              <>
+              {loadingOlderMessages && (
+                <div className="typing-indicator">Loading older messages...</div>
+              )}
+              {messages.map((item, index) => {
                 const currentUserId = Number(user?.id)
                 const messageUserId = Number(item.userId ?? item.user?.id)
                 const isMine = Number.isFinite(currentUserId) && messageUserId === currentUserId
@@ -413,7 +494,8 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
                     )}
                   </div>
                 )
-              })
+              })}
+              </>
             )}
             <div ref={scrollRef} />
           </div>
