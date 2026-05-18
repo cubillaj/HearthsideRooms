@@ -16,7 +16,17 @@ import type { SQL } from 'drizzle-orm'
 import { AppError } from "../utils/appError.js";
 import {UpdateMyProfileSchema, updateMyProfileSchema, changePasswordSchema, ChangePasswordSchema, adminCreateUserSchema, AdminCreateUserSchema, UpdateUserSchema, GetUsersQuerySchema, UpdateProfileSchema} from '../validation/user.validation.js'
 import { comparePassword, hashPassword } from "./auth.services.js";
+import { redis } from "../redis/redis.js";
 
+const USERS_CACHE_PATTERN = 'users:*'
+
+async function clearUsersCache() {
+    const keys = await redis.keys(USERS_CACHE_PATTERN)
+
+    if (keys.length > 0) {
+        await redis.del(keys)
+    }
+}
 
 export const userProfile = async (userId: number) => {
 
@@ -59,6 +69,8 @@ export const updateMyProfile = async (userId: number, data: UpdateMyProfileSchem
                 })
 
     if (!updatedUser) throw new AppError('User not found', 404)
+
+    await clearUsersCache()
 
     return updatedUser
 }
@@ -135,6 +147,8 @@ export const createUserAccount = async (data: AdminCreateUserSchema) => {
 
         if (!newUser) throw new AppError('Failed to create user', 400)
 
+        await clearUsersCache()
+
         return newUser
 }
 
@@ -206,6 +220,14 @@ export const getAllUsers = async (query: unknown) => {
 
     const offset = (page - 1) * limit
 
+    const cacheKey = `users:${JSON.stringify(parsed.data)}`
+    const cachedUsers = await redis.get(cacheKey)
+
+    if (cachedUsers) {
+        return {
+            ...JSON.parse(cachedUsers)
+        }
+    }
 
     const allUsers = await db.query.users.findMany({
         where: and(...filters),
@@ -226,8 +248,8 @@ export const getAllUsers = async (query: unknown) => {
 
     const total = Number(count)
     const totalPages = Math.ceil(total / limit)
-    
-    return {
+
+    const result = {
         users: allUsers,
         pagination: {
             page,
@@ -238,10 +260,26 @@ export const getAllUsers = async (query: unknown) => {
             hasPrevPage: page > 1
         }
     }
+
+    await redis.set(cacheKey, JSON.stringify(result), {
+        EX: 60
+    })
+    
+    return result
 }
 
 // get specific user
 export const getUser = async (userId: number) => {
+    const cacheKey = `user:${userId}`
+
+    const cachedUser = await redis.get(cacheKey)
+
+    if(cachedUser) {
+        return {
+            user: JSON.parse(cachedUser)
+        }
+    }
+
     const user = await db.query.users.findFirst({
         where: and(
             eq(users.id, userId),
@@ -256,6 +294,9 @@ export const getUser = async (userId: number) => {
 
     if (!user) throw new AppError('User not found', 404)
 
+    await redis.set(cacheKey, JSON.stringify(user), {
+        EX: 60
+    })
     return user
 }
 
@@ -312,6 +353,9 @@ export const updateUser = async (userId: number, data: unknown) => {
 
     if (!updatedUser) throw new AppError('Failed to update user', 400)
 
+    await redis.del(`user:${userId}`)
+    await clearUsersCache()
+
     return updatedUser
 }
 
@@ -322,6 +366,9 @@ export const deleteUser = async (userId: number) => {
                                             )).returning()
 
     if (!deletedUser) throw new AppError('User not found', 404)
+
+    await redis.del(`user:${userId}`)
+    await clearUsersCache()
 
     return deletedUser
 }

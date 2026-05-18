@@ -5,6 +5,17 @@ import { AppError } from "../utils/appError.js";
 import { and, asc, desc, eq, gte, ilike, lte, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { comparePassword, hashPassword } from "./auth.services.js";
+import { redis } from "../redis/redis.js";
+
+const ROOMS_CACHE_PATTERN = 'rooms:*'
+
+async function clearRoomsCache() {
+    const keys = await redis.keys(ROOMS_CACHE_PATTERN)
+
+    if (keys.length > 0) {
+        await redis.del(keys)
+    }
+}
 
 export const createRoom = async (userId: number, data: RoomSchema) => {
     const parsed = roomSchema.safeParse(data)
@@ -37,6 +48,7 @@ export const createRoom = async (userId: number, data: RoomSchema) => {
         roomId: newRoom.id
     })
 
+    await clearRoomsCache()
     return {
         ...newRoom,
         hasPassword: Boolean(roomPassword)
@@ -97,6 +109,8 @@ export const joinRoom = async (userId: number, roomId: number, roomPassword: Roo
         userId,
         roomId: existingRoom.id
     })
+
+    await clearRoomsCache()
 
     const { roomPassword: _, ...safeRoom} = existingRoom
 
@@ -221,6 +235,16 @@ export const getAllRoomsForAdmin = async (query: unknown) => {
 
     const offSet = (page - 1) * limit 
 
+    const cacheKey = `rooms:${JSON.stringify(parsed.data)}`
+    const cachedRooms = await redis.get(cacheKey)
+
+    if(cachedRooms) {
+        return {
+            ...JSON.parse(cachedRooms),
+            source: 'redis-cache'
+        }
+    }
+
     const allRooms = await db.query.rooms.findMany({
         where: and(...filters),
         orderBy,
@@ -264,8 +288,9 @@ export const getAllRoomsForAdmin = async (query: unknown) => {
     const total = Number(count)
     const totalPages = Math.ceil(total / limit)
 
-    return {
+    const result = {
         rooms: allRooms,
+        source: 'neon',
         pagination: {
             page,
             limit,
@@ -275,6 +300,12 @@ export const getAllRoomsForAdmin = async (query: unknown) => {
             hasPrevPage: page > 1
         }
     }
+
+    await redis.set(cacheKey, JSON.stringify(result), {
+        EX: 60
+    })
+
+    return result
 }
 
 export const getSingleRoom = async (data: unknown) => {
@@ -340,5 +371,6 @@ export const deleteRoomFromAdmin = async (data: unknown) => {
 
     if (!deletedRoom) throw new AppError('Room is not found', 400)
 
+    await clearRoomsCache()
     return deletedRoom
 }

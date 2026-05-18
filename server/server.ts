@@ -10,7 +10,7 @@ import cookieParser from 'cookie-parser'
 import { errorMiddleware } from './src/middleware/error.middleware.js'
 import helmet from 'helmet'
 import morgan from 'morgan'
-
+import { connectRedis } from './src/redis/redis.js'
 const app = express()
 app.set('trust proxy', 1)
 const devOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174']
@@ -35,6 +35,15 @@ app.use('/api/rooms', roomRouter)
 app.use('/api/messages', messageRouter)
 app.use(errorMiddleware)
 
-server.listen(PORT, () => {
-    console.log(`Server started on port ${PORT}`)
+async function startServer() {
+    await connectRedis()
+
+    server.listen(PORT, () => {
+        console.log(`Server started on port ${PORT}`)
+    })
+}
+
+startServer().catch((error) => {
+    console.error('Failed to start server', error)
+    process.exit(1)
 })
