@@ -20,7 +20,12 @@ async function clearRoomsCache() {
 export const createRoom = async (userId: number, data: RoomSchema) => {
     const parsed = roomSchema.safeParse(data)
 
-    if (!parsed.success) throw new AppError('Invalid data', 400)
+    if (!parsed.success) {
+        const errors = parsed.error.flatten().fieldErrors
+        const msgVal = Object.values(errors).flat()[0] || 'Invalid data'
+
+        throw new AppError(msgVal, 400)
+    }
     
     const { roomName, roomPassword} = parsed.data
 

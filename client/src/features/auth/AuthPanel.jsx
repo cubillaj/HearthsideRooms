@@ -126,7 +126,7 @@ export const AuthPanel = ({ onAuth }) => {
               <input className="cozy-input" placeholder="Password" type="password" value={values.password} onChange={(e) => updateField('password', e.target.value)} />
             </div>
 
-            {error && <div className="error-banner">⚠️ {error}</div>}
+            {error && <div className="error-banner">{error}</div>}
 
             <button
               className="btn-primary"

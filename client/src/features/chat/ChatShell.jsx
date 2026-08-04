@@ -417,7 +417,7 @@ export const ChatShell = ({ token, user, onOpenProfile }) => {
             )}
           </div>
 
-          {error && <div className="error-banner">⚠️ {error}</div>}
+          {error && <div className="error-banner">{error}</div>}
         </aside>
 
         {/* ── Chat panel ── */}
