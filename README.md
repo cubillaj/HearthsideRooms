@@ -4,7 +4,7 @@ A full-stack, real-time group chat platform built to demonstrate secure authenti
 
 Hearthside Rooms supports public and password-protected rooms, live messages, presence, typing indicators, read receipts, profile management, and role-based administration. The backend combines REST endpoints with authenticated Socket.IO events and uses PostgreSQL as the source of truth and Redis for caching and distributed rate limiting.
 
-![Hearthside Rooms interface](client/src/assets/hero.png)
+![Hearthside Rooms interface](client/src/assets/hearhside.png)
 
 ## Why this project stands out
 
