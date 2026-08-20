@@ -12,7 +12,8 @@ import helmet from 'helmet'
 import morgan from 'morgan'
 import { connectRedis } from './src/redis/redis.js'
 const app = express()
-app.set('trust proxy', 1)
+// Trust no forwarded address by default. Set this to the exact proxy-hop count.
+app.set('trust proxy', process.env.TRUST_PROXY_HOPS ? Number(process.env.TRUST_PROXY_HOPS) : false)
 const devOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174']
 
 app.use(helmet())
