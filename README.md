@@ -80,6 +80,9 @@ EXPIRES_IN=15m
 PORT=3000
 NODE_ENV=development
 CLIENT_URL=http://localhost:5173
+REDIS_URL=redis://localhost:6379
+# Exact trusted reverse-proxy hop count; leave unset for direct deployments.
+TRUST_PROXY_HOPS=1
 ```
 
 Create `client/.env` if your server is not running on the default local URL:
@@ -255,6 +258,9 @@ The Drizzle schema includes:
 - Refresh tokens are stored as HTTP-only cookies scoped to `/api/auth`.
 - The server allows local client origins on ports `5173` and `5174`.
 - Room passwords and user passwords are hashed with bcrypt before storage.
+- Redis rate limiting fails closed: limited requests return HTTP 503 when Redis is unavailable, and startup fails if Redis cannot connect. Login allows 10 failed attempts per normalized-email hash and 100 per client IP per 15 minutes, with progressive delay from failure five; successful login clears the email bucket. API limits use only user ID after authentication and only IP before authentication.
+- Redis namespaces are separate for login, registration, webhook, read, write, upload, export, and sensitive actions. Webhook and export namespaces are reserved until those endpoint classes are added.
+- Express ignores forwarded client-IP headers by default. In a proxied production deployment, `TRUST_PROXY_HOPS` must be set to the exact hop count (commonly `1`) so clients cannot select their own rate-limit IP through `X-Forwarded-For`.
 - Message history automatically marks room messages as read for the current user.
 
 ## Current Limitations

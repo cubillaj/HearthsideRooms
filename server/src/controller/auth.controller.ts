@@ -1,6 +1,8 @@
 import { Request, Response } from "express"
 import * as AuthService from '../services/auth.services.js'
 import { handleControllererror } from "../utils/handleErrorController.js"
+import { AppError } from "../utils/appError.js"
+import { clearLoginEmailFailures, normalizeEmail, progressiveLoginDelayMs, recordLoginFailure, requestIp, sendRateLimited } from "../middleware/rateLimiter.middleware.js"
 
 export const REFRESH_COOKIE_OPTIONS = {
     httpOnly: true,
@@ -30,8 +32,16 @@ export const registerController = async (req: Request, res: Response) => {
 }
 
 export const loginController = async (req: Request, res: Response ) => {
+    const email = normalizeEmail(req.body?.email)
     try {
         const user = await AuthService.login(req.body)
+
+        try {
+            await clearLoginEmailFailures(email)
+        } catch (redisError) {
+            console.error('Login rate limiter unavailable', redisError)
+            return res.status(503).json({ message: 'Service temporarily unavailable' })
+        }
 
         const oldRefreshToken = req.cookies.refreshToken 
 
@@ -48,6 +58,17 @@ export const loginController = async (req: Request, res: Response ) => {
             token: user.token
         })
     } catch (error) {
+        if (error instanceof AppError && error.statusCode === 401 && email) {
+            try {
+                const { attempt, waitMs } = await recordLoginFailure(email, requestIp(req))
+                if (waitMs > 0) return sendRateLimited(res, waitMs)
+                const delay = progressiveLoginDelayMs(attempt)
+                if (delay) await new Promise(resolve => setTimeout(resolve, delay))
+            } catch (redisError) {
+                console.error('Login rate limiter unavailable', redisError)
+                return res.status(503).json({ message: 'Service temporarily unavailable' })
+            }
+        }
         return handleControllererror(res, error)
     }
 }

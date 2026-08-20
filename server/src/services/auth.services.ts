@@ -11,6 +11,8 @@ import { AppError } from "../utils/appError.js";
 
 const JWT_SECRET: any = process.env.JWT_SECRET 
 const JWT_EXPIRES_IN: any = process.env.EXPIRES_IN || '15m'
+// Keeps invalid-account and invalid-password paths computationally similar.
+const DUMMY_PASSWORD_HASH = '$2b$12$kau5Q/vk/f.jcISiBJ6d2.HyCjSLsZnzE5eUqTRTSgQn5YDrwGEUS'
 
 // hash the password ex random letter and number
 export const hashPassword = (password: string) => {
@@ -138,7 +140,10 @@ export const login = async (data: unknown) => {
 
     const [user] = await db.select().from(users).where(eq(users.email, email))
 
-    if(!user) throw new AppError('Invalid Credentials', 401)
+    if (!user) {
+        await comparePassword(password, DUMMY_PASSWORD_HASH)
+        throw new AppError('Invalid Credentials', 401)
+    }
 
     const validPassword = await comparePassword(password, user.password)
 
